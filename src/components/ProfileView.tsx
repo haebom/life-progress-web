@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { FaTrophy, FaStar, FaMedal } from 'react-icons/fa';
 import { Firebase } from '@/lib/firebase';
@@ -10,6 +10,38 @@ import StatCard from './StatCard';
 interface ProfileViewProps {
   userId: string;
 }
+
+const LOADING_PULSE_CLASS = "bg-gray-200 dark:bg-gray-700 rounded animate-pulse";
+
+const ProfileImage = ({ user, loading }: { user: User | null; loading: boolean }) => {
+  if (loading) {
+    return <div className={`w-24 h-24 ${LOADING_PULSE_CLASS} rounded-full`} />;
+  }
+
+  if (user?.photoURL) {
+    return (
+      <Image
+        src={user.photoURL}
+        alt={user.displayName || user.name || '프로필 이미지'}
+        width={96}
+        height={96}
+        className="rounded-full"
+      />
+    );
+  }
+
+  return (
+    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+      <span className="text-2xl text-gray-400 dark:text-gray-500">
+        {(user?.displayName || user?.name || '?')[0]}
+      </span>
+    </div>
+  );
+};
+
+const LoadingText = ({ width }: { width: string }) => (
+  <div className={`h-4 ${LOADING_PULSE_CLASS} ${width}`} />
+);
 
 export default function ProfileView({ userId }: ProfileViewProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +68,29 @@ export default function ProfileView({ userId }: ProfileViewProps) {
     loadUserData();
   }, [userId]);
 
+  const statsCards = useMemo(() => [
+    {
+      title: "퀘스트",
+      value: user?.gameStats.questsCompleted || 0,
+      icon: FaTrophy,
+      description: "완료한 퀘스트 수",
+      formatOptions: { useAbbreviation: true }
+    },
+    {
+      title: "레벨",
+      value: user?.gameStats.level || 1,
+      icon: FaStar,
+      description: "현재 달성 레벨"
+    },
+    {
+      title: "포인트",
+      value: user?.gameStats.points || 0,
+      icon: FaMedal,
+      description: "획득한 총 포인트",
+      formatOptions: { useAbbreviation: true }
+    }
+  ], [user?.gameStats]);
+
   if (error) {
     return (
       <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -55,36 +110,20 @@ export default function ProfileView({ userId }: ProfileViewProps) {
       {/* 프로필 헤더 */}
       <div className="flex flex-col sm:flex-row items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
         <div className="relative w-24 h-24">
-          {loading ? (
-            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
-          ) : user?.photoURL ? (
-            <Image
-              src={user.photoURL}
-              alt={user.displayName || user.name || '프로필 이미지'}
-              width={96}
-              height={96}
-              className="rounded-full"
-            />
-          ) : (
-            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-              <span className="text-2xl text-gray-400 dark:text-gray-500">
-                {(user?.displayName || user?.name || '?')[0]}
-              </span>
-            </div>
-          )}
+          <ProfileImage user={user} loading={loading} />
         </div>
         
         <div className="text-center sm:text-left">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             {loading ? (
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
+              <div className={`h-8 ${LOADING_PULSE_CLASS} w-48`} />
             ) : (
               user?.displayName || user?.name || '이름 없음'
             )}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {loading ? (
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mt-2 animate-pulse" />
+              <LoadingText width="w-32 mt-2" />
             ) : (
               user?.email || '이메일 없음'
             )}
@@ -94,29 +133,13 @@ export default function ProfileView({ userId }: ProfileViewProps) {
 
       {/* 통계 카드 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          title="퀘스트"
-          value={user?.gameStats.questsCompleted || 0}
-          icon={FaTrophy}
-          description="완료한 퀘스트 수"
-          isLoading={loading}
-          formatOptions={{ useAbbreviation: true }}
-        />
-        <StatCard
-          title="레벨"
-          value={user?.gameStats.level || 1}
-          icon={FaStar}
-          description="현재 달성 레벨"
-          isLoading={loading}
-        />
-        <StatCard
-          title="포인트"
-          value={user?.gameStats.points || 0}
-          icon={FaMedal}
-          description="획득한 총 포인트"
-          isLoading={loading}
-          formatOptions={{ useAbbreviation: true }}
-        />
+        {statsCards.map((card, index) => (
+          <StatCard
+            key={index}
+            {...card}
+            isLoading={loading}
+          />
+        ))}
       </div>
 
       {/* 추가 프로필 정보 */}
@@ -129,7 +152,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
             <span className="text-gray-500 dark:text-gray-400">가입일</span>
             <span className="text-gray-900 dark:text-white">
               {loading ? (
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+                <LoadingText width="w-32" />
               ) : (
                 user?.createdAt?.toDate().toLocaleDateString() || '알 수 없음'
               )}
@@ -139,7 +162,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
             <span className="text-gray-500 dark:text-gray-400">최근 활동</span>
             <span className="text-gray-900 dark:text-white">
               {loading ? (
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+                <LoadingText width="w-32" />
               ) : (
                 user?.lastActive?.toDate().toLocaleDateString() || '알 수 없음'
               )}
