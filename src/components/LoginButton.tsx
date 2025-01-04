@@ -7,6 +7,7 @@ import { signInWithGoogle, isInAppBrowser, isSafariBrowser } from '@/lib/firebas
 export default function LoginButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showInAppBrowserModal, setShowInAppBrowserModal] = useState(false);
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -14,23 +15,9 @@ export default function LoginButton() {
 
     try {
       if (isInAppBrowser()) {
-        // 인앱 브라우저 감지 시 안내 메시지 표시
-        return (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-sm w-full">
-              <h3 className="text-lg font-semibold mb-2">외부 브라우저로 이동</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                보안을 위해 Safari나 Chrome 브라우저에서 로그인해주세요.
-              </p>
-              <button
-                onClick={() => window.location.href = window.location.href}
-                className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
-              >
-                브라우저에서 열기
-              </button>
-            </div>
-          </div>
-        );
+        setShowInAppBrowserModal(true);
+        setIsLoading(false);
+        return;
       }
 
       await signInWithGoogle();
@@ -41,6 +28,25 @@ export default function LoginButton() {
       setIsLoading(false);
     }
   };
+
+  if (showInAppBrowserModal) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-sm w-full">
+          <h3 className="text-lg font-semibold mb-2">외부 브라우저로 이동</h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            보안을 위해 Safari나 Chrome 브라우저에서 로그인해주세요.
+          </p>
+          <button
+            onClick={() => window.location.href = window.location.href}
+            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          >
+            브라우저에서 열기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -5,10 +5,11 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-  type User,
+  type User as FirebaseUser
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -26,7 +27,7 @@ import {
   DocumentData,
   addDoc,
 } from 'firebase/firestore';
-import type { User as CustomUser, Quest } from '@/types';
+import type { User, GameStats, Quest } from '@/types';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -44,7 +45,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // 인앱 브라우저 감지
-export function isInAppBrowser(): boolean {
+function isInAppBrowser(): boolean {
   if (typeof window === 'undefined') return false;
   
   const ua = window.navigator.userAgent;
@@ -59,7 +60,7 @@ export function isInAppBrowser(): boolean {
 }
 
 // Safari 브라우저 감지
-export function isSafariBrowser(): boolean {
+function isSafariBrowser(): boolean {
   if (typeof window === 'undefined') return false;
   
   const ua = window.navigator.userAgent;
@@ -67,11 +68,9 @@ export function isSafariBrowser(): boolean {
 }
 
 // 외부 브라우저로 열기 유도
-export function openInExternalBrowser(url: string): void {
+function openInExternalBrowser(url: string): void {
   if (isInAppBrowser()) {
-    // 모바일 Safari로 열기
     window.location.href = `googlechrome://navigate?url=${encodeURIComponent(url)}`;
-    // 시간 차를 두고 Safari로 시도
     setTimeout(() => {
       window.location.href = url;
     }, 2000);
@@ -81,19 +80,24 @@ export function openInExternalBrowser(url: string): void {
 // Google 로그인 프로바이더 설정
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({
-  prompt: 'select_account',
+  prompt: 'select_account'
 });
 
 // Google 로그인 함수
 const signInWithGoogle = async () => {
   console.log('Google 로그인 시작');
   try {
-    // 인앱 브라우저 체크
     if (isInAppBrowser()) {
       console.log('인앱 브라우저 감지됨');
       const currentUrl = window.location.href;
       openInExternalBrowser(currentUrl);
       return;
+    }
+
+    if (isSafariBrowser()) {
+      const result = await signInWithPopup(auth, provider);
+      console.log('Google 로그인 팝업 완료:', result.user.uid);
+      return result;
     }
 
     await signInWithRedirect(auth, provider);
@@ -104,9 +108,6 @@ const signInWithGoogle = async () => {
   }
 };
 
-// 로그아웃 함수
-const signOutUser = () => signOut(auth);
-
 // 리다이렉트 결과 확인 함수
 const getGoogleRedirectResult = async () => {
   console.log('리다이렉트 결과 확인 시작');
@@ -115,32 +116,88 @@ const getGoogleRedirectResult = async () => {
     if (result) {
       console.log('리다이렉트 결과 성공:', result.user.uid);
       sessionStorage.setItem('auth_redirect_complete', 'true');
-      localStorage.setItem('auth_redirect_complete', 'true');
       return result;
     }
     console.log('리다이렉트 결과 없음');
     return null;
   } catch (error) {
     console.error('리다이렉트 결과 확인 중 오류:', error);
+    if (error instanceof Error) {
+      console.error('에러 타입:', error.name);
+      console.error('에러 메시지:', error.message);
+    }
     throw error;
   }
 };
 
 // Auth 상태 변경 감지 초기화
-const initializeAuth = (callback: (user: User | null) => void) => {
+const initializeAuth = (callback: (user: FirebaseUser | null) => void) => {
   console.log('Auth 상태 감지 초기화');
-  return onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, async (user) => {
     console.log('Auth 상태 변경:', user ? '로그인됨' : '로그아웃됨');
+    if (user) {
+      try {
+        const userData = await fetchUserData(user.uid);
+        if (!userData) {
+          const now = Timestamp.now();
+          const defaultGameStats: GameStats = {
+            level: 1,
+            experience: 0,
+            questsCompleted: 0,
+            points: 0,
+            streak: 0,
+            lastActive: now,
+            achievements: [],
+            nextLevelExp: 100
+          };
+
+          const newUser: Omit<User, 'id'> = {
+            uid: user.uid,
+            email: user.email || '',
+            name: user.displayName || '',
+            displayName: user.displayName || '',
+            photoURL: user.photoURL || '',
+            birthDate: now,
+            lifeExpectancy: 80,
+            isPublic: false,
+            pushNotifications: true,
+            gameStats: defaultGameStats,
+            blocks: {},
+            createdAt: now,
+            updatedAt: now,
+            lastLoginAt: now,
+            quests: 0,
+            level: 1,
+            points: 0,
+            streak: 0,
+            lastActive: now,
+            achievements: [],
+            settings: {
+              theme: 'light',
+              notifications: true,
+              language: 'ko'
+            }
+          };
+          
+          await createNewUser(newUser);
+        }
+      } catch (error) {
+        console.error('사용자 데이터 처리 중 오류:', error);
+      }
+    }
     callback(user);
   });
 };
 
+// 로그아웃 함수
+const signOutUser = () => signOut(auth);
+
 // 사용자 데이터 관련 함수들
-export async function fetchUserData(uid: string): Promise<CustomUser | null> {
+async function fetchUserData(uid: string): Promise<User | null> {
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
-      return userDoc.data() as CustomUser;
+      return userDoc.data() as User;
     }
     return null;
   } catch (error) {
@@ -149,7 +206,7 @@ export async function fetchUserData(uid: string): Promise<CustomUser | null> {
   }
 }
 
-export async function createNewUser(user: CustomUser) {
+async function createNewUser(user: Omit<User, 'id'>) {
   try {
     await setDoc(doc(db, 'users', user.uid), user);
   } catch (error) {
@@ -158,7 +215,7 @@ export async function createNewUser(user: CustomUser) {
   }
 }
 
-export async function updateUserProfile(uid: string, data: Partial<CustomUser>) {
+async function updateUserProfile(uid: string, data: Partial<User>) {
   try {
     const userRef = doc(db, 'users', uid);
     await updateDoc(userRef, {
@@ -172,7 +229,7 @@ export async function updateUserProfile(uid: string, data: Partial<CustomUser>) 
 }
 
 // Quest 관련 함수들
-export async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>) {
+async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>) {
   try {
     const questRef = doc(collection(db, 'quests'));
     const now = Timestamp.now();
@@ -190,7 +247,7 @@ export async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'u
   }
 }
 
-export async function getQuests(userId: string) {
+async function getQuests(userId: string) {
   if (!userId) {
     console.error('유저 ID가 없습니다.');
     return [];
@@ -210,7 +267,7 @@ export async function getQuests(userId: string) {
   }
 }
 
-export async function getQuest(questId: string): Promise<Quest | null> {
+async function getQuest(questId: string): Promise<Quest | null> {
   try {
     const questDoc = await getDoc(doc(db, 'quests', questId));
     if (questDoc.exists()) {
@@ -223,7 +280,7 @@ export async function getQuest(questId: string): Promise<Quest | null> {
   }
 }
 
-export async function updateQuest(questId: string, updates: Partial<Quest>) {
+async function updateQuest(questId: string, updates: Partial<Quest>) {
   try {
     const questRef = doc(db, 'quests', questId);
     await updateDoc(questRef, {
@@ -236,7 +293,7 @@ export async function updateQuest(questId: string, updates: Partial<Quest>) {
   }
 }
 
-export async function deleteQuest(questId: string) {
+async function deleteQuest(questId: string) {
   try {
     await deleteDoc(doc(db, 'quests', questId));
   } catch (error) {
@@ -257,7 +314,7 @@ interface NotificationData {
 }
 
 // 알림 생성 함수
-export async function createNotification(
+async function createNotification(
   userId: string,
   title: string,
   message: string,
@@ -265,16 +322,18 @@ export async function createNotification(
   data?: NotificationData
 ) {
   try {
-    const notificationRef = collection(db, 'notifications');
-    await addDoc(notificationRef, {
+    const notificationsRef = collection(db, 'notifications');
+    const notification = {
       userId,
       title,
       message,
       type,
       data,
-      createdAt: Timestamp.now(),
       read: false,
-    });
+      createdAt: serverTimestamp(),
+    };
+    
+    await addDoc(notificationsRef, notification);
   } catch (error) {
     console.error('알림 생성 중 오류 발생:', error);
     throw error;
@@ -289,4 +348,15 @@ export {
   signOutUser,
   getGoogleRedirectResult,
   initializeAuth,
+  fetchUserData,
+  createNewUser,
+  updateUserProfile,
+  createQuest,
+  getQuests,
+  getQuest,
+  updateQuest,
+  deleteQuest,
+  createNotification,
+  isInAppBrowser,
+  isSafariBrowser,
 }; 
