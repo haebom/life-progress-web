@@ -1,4 +1,8 @@
-import QuestDetailView from '@/components/QuestDetailView';
+import dynamic from 'next/dynamic';
+
+const QuestDetailView = dynamic(() => import('@/components/QuestDetailView'), {
+  ssr: false
+});
 
 interface QuestDetailPageProps {
   params: {

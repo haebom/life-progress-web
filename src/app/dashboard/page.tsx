@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useStore from '@/store/useStore';
 import QuestList from '@/components/QuestList';
 import QuestCreateModal from '@/components/QuestCreateModal';
-import { getQuests } from '@/lib/firebase';
+import { getQuests, createQuest } from '@/lib/firebase';
 import type { Quest } from '@/types';
 
 export default function DashboardPage() {
@@ -101,12 +101,15 @@ export default function DashboardPage() {
 
       {isCreateModalOpen && (
         <QuestCreateModal
+          userId={user.uid}
           onClose={() => setIsCreateModalOpen(false)}
           onSave={async (questData) => {
             try {
-              // 퀘스트 생성 로직
+              await createQuest({
+                ...questData,
+                userId: user.uid,
+              });
               setIsCreateModalOpen(false);
-              // 퀘스트 목록 새로고침
               const updatedQuests = await getQuests(user.uid);
               setQuests(updatedQuests);
             } catch (error) {

@@ -10,7 +10,7 @@ interface QuestDetailViewProps {
   questId: string;
 }
 
-export default function QuestDetailView({ questId }: QuestDetailViewProps) {
+const QuestDetailView: React.FC<QuestDetailViewProps> = ({ questId }) => {
   const router = useRouter();
   const { user } = useStore();
   const [quest, setQuest] = React.useState<Quest | null>(null);
@@ -179,4 +179,6 @@ export default function QuestDetailView({ questId }: QuestDetailViewProps) {
       </div>
     </div>
   );
-} 
+};
+
+export default QuestDetailView; 

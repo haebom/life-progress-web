@@ -10,7 +10,7 @@ import {
   setDoc,
   updateDoc,
   collection,
-  query as firestoreQuery,
+  query,
   where,
   getDocs,
   Timestamp,
@@ -19,6 +19,7 @@ import {
   orderBy,
   increment,
   serverTimestamp,
+  DocumentData,
 } from 'firebase/firestore';
 import type { User, Quest, QuestComment, QuestCheer } from '@/types';
 
@@ -131,7 +132,7 @@ export async function searchUsers(searchQuery: string): Promise<User[]> {
     const usersRef = collection(db, 'users');
     const q = searchQuery.toLowerCase();
     const querySnapshot = await getDocs(
-      firestoreQuery(usersRef, where('displayName', '>=', q), where('displayName', '<=', q + '\uf8ff'))
+      query(usersRef, where('displayName', '>=', q), where('displayName', '<=', q + '\uf8ff'))
     );
     return querySnapshot.docs.map(doc => doc.data() as User);
   } catch (error) {
@@ -195,7 +196,7 @@ export async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'u
 
 export async function getUserQuests(userId: string): Promise<Quest[]> {
   try {
-    const q = firestoreQuery(
+    const q = query(
       collection(db, 'quests'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
@@ -210,7 +211,7 @@ export async function getUserQuests(userId: string): Promise<Quest[]> {
 
 export async function getPublicQuests(): Promise<Quest[]> {
   try {
-    const q = firestoreQuery(
+    const q = query(
       collection(db, 'quests'),
       where('isPublic', '==', true),
       orderBy('createdAt', 'desc')
@@ -275,7 +276,7 @@ export async function updateQuestProgress(questId: string, progress: number) {
 export async function toggleQuestLike(questId: string, userId: string) {
   try {
     const likesRef = collection(db, 'quests', questId, 'likes');
-    const q = firestoreQuery(likesRef, where('userId', '==', userId));
+    const q = query(likesRef, where('userId', '==', userId));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
@@ -304,7 +305,7 @@ export async function toggleQuestLike(questId: string, userId: string) {
 export async function getQuestLikeStatus(questId: string, userId: string): Promise<boolean> {
   try {
     const likesRef = collection(db, 'quests', questId, 'likes');
-    const q = firestoreQuery(likesRef, where('userId', '==', userId));
+    const q = query(likesRef, where('userId', '==', userId));
     const snapshot = await getDocs(q);
     return !snapshot.empty;
   } catch (error) {
@@ -342,7 +343,7 @@ export async function addQuestComment(
 
 export async function getQuestComments(questId: string): Promise<QuestComment[]> {
   try {
-    const q = firestoreQuery(
+    const q = query(
       collection(db, 'quests', questId, 'comments'),
       orderBy('createdAt', 'desc')
     );
@@ -386,7 +387,7 @@ export async function addQuestCheer(
 
 export async function getQuestCheers(questId: string): Promise<QuestCheer[]> {
   try {
-    const q = firestoreQuery(
+    const q = query(
       collection(db, 'quests', questId, 'cheers'),
       orderBy('createdAt', 'desc')
     );
@@ -408,7 +409,7 @@ export async function getQuests(userId: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...(doc.data() as DocumentData)
     })) as Quest[];
   } catch (error) {
     console.error('퀘스트 목록 조회 오류:', error);
