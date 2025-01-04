@@ -1,11 +1,1 @@
-import { ProfileView } from '@/components/ProfileView';
-
-interface PageProps {
-  params: {
-    userId: string;
-  };
-}
-
-export default function ProfilePage({ params }: PageProps) {
-  return <ProfileView userId={params.userId} />;
-} 
+type PageParams = { userId: string; }; type Props = { params: Promise<PageParams>; searchParams: { [key: string]: string | string[] | undefined }; }; export default async function ProfilePage({ params, searchParams }: Props) { const { userId } = await params; return ( <div>{/* Your existing component code */}</div> ); }
