@@ -54,43 +54,44 @@ export const YearProgress: React.FC<YearProgressProps> = ({
   const expProgress = (experience / nextLevelExp) * 100;
 
   return (
-    <div className="w-full max-w-md mx-auto p-4">
+    <div className="p-4 bg-white">
       {/* 연도 진행률 */}
-      <div className="mb-6">
-        <div className="mb-2 flex justify-between text-sm text-gray-600">
-          <span>{year || localTime.getFullYear()}년</span>
-          <span title={`${timeZoneName} 기준`} className="cursor-help">
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">{year || localTime.getFullYear()}년</span>
+          <span 
+            title={`${timeZoneName} 기준`} 
+            className="text-sm text-gray-600 cursor-help"
+          >
             {progress.toFixed(3)}%
           </span>
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-out"
+            className="h-full bg-blue-500 transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       {/* 레벨과 경험치 */}
-      <div className="mb-6">
-        <div className="mb-2 flex justify-between text-sm text-gray-600">
-          <span>Level {level}</span>
-          <span>{experience} / {nextLevelExp} XP</span>
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">Level {level}</span>
+          <span className="text-sm text-gray-600">{experience} / {nextLevelExp} XP</span>
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+            className="h-full bg-green-500 transition-all duration-300"
             style={{ width: `${expProgress}%` }}
           />
         </div>
       </div>
 
       {/* 동기부여 메시지 */}
-      <div className="mt-4 text-center">
-        <p className="text-gray-700 text-lg">
-          {message}
-        </p>
-      </div>
+      <p className="text-sm text-center text-gray-700 mt-4">
+        {message}
+      </p>
     </div>
   );
 }; 

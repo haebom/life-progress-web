@@ -49,40 +49,40 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold mb-6">대시보드</h1>
+    <div className="max-w-lg mx-auto">
+      <h1 className="text-xl font-bold px-4 py-3 bg-white">대시보드</h1>
       
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg shadow-sm">
+      <div className="space-y-[1px] bg-gray-100">
+        <div className="bg-white">
           <TimeProgress 
             birthDate={user?.birthDate} 
             lifeExpectancy={user?.lifeExpectancy} 
           />
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-white">
           <YearProgress 
             level={user?.gameStats?.level || 1}
             experience={user?.gameStats?.experience || 0}
             nextLevelExp={user?.gameStats?.nextLevelExp || 100}
           />
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-xl font-semibold mb-4">현재 진행 중인 퀘스트</h2>
-        {quests.length > 0 ? (
-          <ul className="space-y-4">
-            {quests.map((quest) => (
-              <li key={quest.id} className="border-b pb-4">
-                <h3 className="font-medium">{quest.title}</h3>
-                <p className="text-gray-600">{quest.description}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500">진행 중인 퀘스트가 없습니다.</p>
-        )}
+        <div className="bg-white p-4">
+          <h2 className="text-lg font-bold mb-4">현재 진행 중인 퀘스트</h2>
+          {quests.length > 0 ? (
+            <ul className="space-y-4">
+              {quests.map((quest) => (
+                <li key={quest.id} className="pb-4 border-b border-gray-100 last:border-0">
+                  <h3 className="font-medium">{quest.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{quest.description}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500">진행 중인 퀘스트가 없습니다.</p>
+          )}
+        </div>
       </div>
     </div>
   );
