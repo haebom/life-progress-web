@@ -73,21 +73,24 @@ export function openInExternalBrowser(url: string): void {
 export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({
-    prompt: 'select_account'
+    prompt: 'select_account',
+    // 브라우저 기본 동작 허용
+    browser_lookup_disallowed: 'false'
   });
   
   try {
-    const { signInWithRedirect, getRedirectResult } = await import('firebase/auth');
-    
-    // 리다이렉트 결과 확인
-    const result = await getRedirectResult(auth);
-    if (result) {
-      // 이미 리다이렉트 결과가 있으면 반환
-      return result;
+    // 인앱 브라우저 체크
+    if (isInAppBrowser()) {
+      // 외부 브라우저로 열기
+      const currentUrl = window.location.href;
+      openInExternalBrowser(currentUrl);
+      return;
     }
 
+    const { signInWithRedirect } = await import('firebase/auth');
+    
     // 리다이렉트 시작
-    return signInWithRedirect(auth, provider);
+    await signInWithRedirect(auth, provider);
   } catch (error) {
     console.error('Google 로그인 오류:', error);
     throw error;
@@ -432,14 +435,28 @@ export async function getQuests(userId: string) {
   }
 }
 
-// 리다이렉트 결과 확인 함수 추가
+// 리다이렉트 결과 확인 함수 수정
 export const getGoogleRedirectResult = async () => {
   try {
     const { getRedirectResult } = await import('firebase/auth');
     const result = await getRedirectResult(auth);
+    
+    if (result) {
+      // 로그인 성공 시 세션스토리지에 상태 저장
+      sessionStorage.setItem('auth_redirect_complete', 'true');
+    }
+    
     return result;
   } catch (error) {
     console.error('리다이렉트 결과 확인 오류:', error);
+    // 세션스토리지 접근 불가 시 로컬스토리지 시도
+    if (error instanceof DOMException && error.name === 'SecurityError') {
+      try {
+        localStorage.setItem('auth_redirect_complete', 'true');
+      } catch (e) {
+        console.error('로컬스토리지 접근 오류:', e);
+      }
+    }
     throw error;
   }
 };

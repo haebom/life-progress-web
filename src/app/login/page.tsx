@@ -16,6 +16,7 @@ export default function LoginPage() {
 
   const handleUserLogin = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
+      setLoading(true);
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data() as User;
@@ -27,6 +28,7 @@ export default function LoginPage() {
     } catch (error) {
       console.error('사용자 데이터 처리 중 오류:', error);
       setError('사용자 정보를 불러오는데 실패했습니다.');
+    } finally {
       setLoading(false);
     }
   }, [router, setUser]);
@@ -34,13 +36,31 @@ export default function LoginPage() {
   useEffect(() => {
     const checkRedirectResult = async () => {
       try {
+        // 이미 처리된 리다이렉트인지 확인
+        const isProcessed = sessionStorage.getItem('auth_redirect_complete') || 
+                          localStorage.getItem('auth_redirect_complete');
+        
+        if (isProcessed) {
+          sessionStorage.removeItem('auth_redirect_complete');
+          localStorage.removeItem('auth_redirect_complete');
+          return;
+        }
+
+        setLoading(true);
         const result = await getGoogleRedirectResult();
         if (result?.user) {
           await handleUserLogin(result.user);
         }
       } catch (error) {
         console.error('리다이렉트 결과 확인 중 오류:', error);
-        setError('로그인 처리 중 오류가 발생했습니다.');
+        if (error instanceof Error) {
+          setError(
+            error.message.includes('redirect_uri_mismatch')
+              ? '로그인 설정이 올바르지 않습니다. 관리자에게 문의해주세요.'
+              : '로그인 처리 중 오류가 발생했습니다.'
+          );
+        }
+      } finally {
         setLoading(false);
       }
     };
@@ -57,7 +77,13 @@ export default function LoginPage() {
       // 리다이렉트가 발생하므로 여기 이후의 코드는 실행되지 않습니다.
     } catch (error) {
       console.error('구글 로그인 중 오류:', error);
-      setError('구글 로그인에 실패했습니다.');
+      if (error instanceof Error) {
+        setError(
+          error.message.includes('popup_closed_by_user')
+            ? '로그인이 취소되었습니다.'
+            : '구글 로그인에 실패했습니다.'
+        );
+      }
       setLoading(false);
     }
   };
