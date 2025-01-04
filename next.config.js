@@ -6,6 +6,12 @@ const nextConfig = {
   },
   optimizeFonts: true,
   swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  experimental: {
+    optimizeCss: true,
+  },
   async headers() {
     return [
       {
