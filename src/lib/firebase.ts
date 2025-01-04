@@ -1,7 +1,15 @@
 'use client';
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
+  signOut,
+  type User,
+} from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -13,14 +21,11 @@ import {
   where,
   getDocs,
   Timestamp,
-  addDoc,
   deleteDoc,
-  orderBy,
-  increment,
   serverTimestamp,
   DocumentData,
 } from 'firebase/firestore';
-import type { User, Quest, QuestComment, QuestCheer } from '@/types';
+import type { User as CustomUser, Quest } from '@/types';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -29,9 +34,11 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Firebase 초기화
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -70,46 +77,69 @@ export function openInExternalBrowser(url: string): void {
   }
 }
 
-export const signInWithGoogle = async () => {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({
-    prompt: 'select_account',
-    // 브라우저 기본 동작 허용
-    browser_lookup_disallowed: 'false'
-  });
-  
+// Google 로그인 프로바이더 설정
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({
+  prompt: 'select_account',
+});
+
+// Google 로그인 함수
+const signInWithGoogle = async () => {
+  console.log('Google 로그인 시작');
   try {
     // 인앱 브라우저 체크
     if (isInAppBrowser()) {
-      // 외부 브라우저로 열기
+      console.log('인앱 브라우저 감지됨');
       const currentUrl = window.location.href;
       openInExternalBrowser(currentUrl);
       return;
     }
 
-    const { signInWithRedirect } = await import('firebase/auth');
-    
-    // 리다이렉트 시작
     await signInWithRedirect(auth, provider);
+    console.log('Google 로그인 리다이렉트 완료');
   } catch (error) {
-    console.error('Google 로그인 오류:', error);
+    console.error('Google 로그인 중 오류:', error);
     throw error;
   }
 };
 
-export const signOutUser = () => signOut(auth);
+// 로그아웃 함수
+const signOutUser = () => signOut(auth);
 
-export function checkAuthSession(): string | null {
-  const cookies = document.cookie.split(';');
-  const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('auth-session='));
-  return sessionCookie ? sessionCookie.split('=')[1] : null;
-}
+// 리다이렉트 결과 확인 함수
+const getGoogleRedirectResult = async () => {
+  console.log('리다이렉트 결과 확인 시작');
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log('리다이렉트 결과 성공:', result.user.uid);
+      sessionStorage.setItem('auth_redirect_complete', 'true');
+      localStorage.setItem('auth_redirect_complete', 'true');
+      return result;
+    }
+    console.log('리다이렉트 결과 없음');
+    return null;
+  } catch (error) {
+    console.error('리다이렉트 결과 확인 중 오류:', error);
+    throw error;
+  }
+};
 
-export async function fetchUserData(uid: string): Promise<User | null> {
+// Auth 상태 변경 감지 초기화
+const initializeAuth = (callback: (user: User | null) => void) => {
+  console.log('Auth 상태 감지 초기화');
+  return onAuthStateChanged(auth, (user) => {
+    console.log('Auth 상태 변경:', user ? '로그인됨' : '로그아웃됨');
+    callback(user);
+  });
+};
+
+// 사용자 데이터 관련 함수들
+export async function fetchUserData(uid: string): Promise<CustomUser | null> {
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
-      return userDoc.data() as User;
+      return userDoc.data() as CustomUser;
     }
     return null;
   } catch (error) {
@@ -118,7 +148,7 @@ export async function fetchUserData(uid: string): Promise<User | null> {
   }
 }
 
-export async function createNewUser(user: User) {
+export async function createNewUser(user: CustomUser) {
   try {
     await setDoc(doc(db, 'users', user.uid), user);
   } catch (error) {
@@ -127,7 +157,7 @@ export async function createNewUser(user: User) {
   }
 }
 
-export async function updateUserProfile(uid: string, data: Partial<User>) {
+export async function updateUserProfile(uid: string, data: Partial<CustomUser>) {
   try {
     const userRef = doc(db, 'users', uid);
     await updateDoc(userRef, {
@@ -136,54 +166,6 @@ export async function updateUserProfile(uid: string, data: Partial<User>) {
     });
   } catch (error) {
     console.error('프로필 업데이트 실패:', error);
-    throw error;
-  }
-}
-
-export async function searchUsers(searchQuery: string): Promise<User[]> {
-  try {
-    const usersRef = collection(db, 'users');
-    const q = searchQuery.toLowerCase();
-    const querySnapshot = await getDocs(
-      query(usersRef, where('displayName', '>=', q), where('displayName', '<=', q + '\uf8ff'))
-    );
-    return querySnapshot.docs.map(doc => doc.data() as User);
-  } catch (error) {
-    console.error('사용자 검색 실패:', error);
-    throw error;
-  }
-}
-
-interface NotificationData {
-  questId?: string;
-  goalId?: string;
-  friendId?: string;
-  senderName?: string;
-  senderPhotoURL?: string;
-  progress?: number;
-  [key: string]: unknown;
-}
-
-export async function createNotification(
-  userId: string,
-  title: string,
-  message: string,
-  type: string,
-  data?: NotificationData
-) {
-  try {
-    const notificationRef = collection(db, 'notifications');
-    await addDoc(notificationRef, {
-      userId,
-      title,
-      message,
-      type,
-      data,
-      createdAt: Timestamp.now(),
-      read: false,
-    });
-  } catch (error) {
-    console.error('알림 생성 중 오류 발생:', error);
     throw error;
   }
 }
@@ -207,32 +189,22 @@ export async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'u
   }
 }
 
-export async function getUserQuests(userId: string): Promise<Quest[]> {
-  try {
-    const q = query(
-      collection(db, 'quests'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as Quest);
-  } catch (error) {
-    console.error('퀘스트 목록을 가져오는 중 오류 발생:', error);
-    throw error;
+export async function getQuests(userId: string) {
+  if (!userId) {
+    console.error('유저 ID가 없습니다.');
+    return [];
   }
-}
 
-export async function getPublicQuests(): Promise<Quest[]> {
   try {
-    const q = query(
-      collection(db, 'quests'),
-      where('isPublic', '==', true),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as Quest);
+    const questsRef = collection(db, 'quests');
+    const q = query(questsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...(doc.data() as DocumentData)
+    })) as Quest[];
   } catch (error) {
-    console.error('공개 퀘스트 목록을 가져오는 중 오류 발생:', error);
+    console.error('퀘스트 목록 조회 오류:', error);
     throw error;
   }
 }
@@ -272,193 +244,12 @@ export async function deleteQuest(questId: string) {
   }
 }
 
-export async function updateQuestProgress(questId: string, progress: number) {
-  try {
-    const questRef = doc(db, 'quests', questId);
-    await updateDoc(questRef, {
-      progress: Math.min(100, Math.max(0, progress)),
-      updatedAt: serverTimestamp(),
-      ...(progress >= 100 ? { status: 'completed' } : {}),
-    });
-  } catch (error) {
-    console.error('퀘스트 진행률 업데이트 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function toggleQuestLike(questId: string, userId: string) {
-  try {
-    const likesRef = collection(db, 'quests', questId, 'likes');
-    const q = query(likesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      // 좋아요 추가
-      await addDoc(likesRef, {
-        userId,
-        createdAt: serverTimestamp(),
-      });
-      await updateDoc(doc(db, 'quests', questId), {
-        likes: increment(1),
-      });
-    } else {
-      // 좋아요 제거
-      const likeDoc = snapshot.docs[0];
-      await deleteDoc(doc(db, 'quests', questId, 'likes', likeDoc.id));
-      await updateDoc(doc(db, 'quests', questId), {
-        likes: increment(-1),
-      });
-    }
-  } catch (error) {
-    console.error('퀘스트 좋아요 토글 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function getQuestLikeStatus(questId: string, userId: string): Promise<boolean> {
-  try {
-    const likesRef = collection(db, 'quests', questId, 'likes');
-    const q = query(likesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
-  } catch (error) {
-    console.error('퀘스트 좋아요 상태 확인 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function addQuestComment(
-  questId: string,
-  userId: string,
-  userDisplayName: string,
-  userPhotoURL: string | null,
-  content: string
-): Promise<QuestComment> {
-  try {
-    const commentRef = collection(db, 'quests', questId, 'comments');
-    const now = Timestamp.now();
-    const comment = {
-      questId,
-      userId,
-      userDisplayName,
-      userPhotoURL,
-      content,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const docRef = await addDoc(commentRef, comment);
-    return { id: docRef.id, ...comment } as QuestComment;
-  } catch (error) {
-    console.error('댓글 작성 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function getQuestComments(questId: string): Promise<QuestComment[]> {
-  try {
-    const q = query(
-      collection(db, 'quests', questId, 'comments'),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as QuestComment[];
-  } catch (error) {
-    console.error('댓글 목록을 가져오는 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function addQuestCheer(
-  questId: string,
-  userId: string,
-  userDisplayName: string,
-  userPhotoURL: string | null,
-  message: string
-): Promise<QuestCheer> {
-  try {
-    const cheerRef = collection(db, 'quests', questId, 'cheers');
-    const now = Timestamp.now();
-    const cheer = {
-      questId,
-      userId,
-      userDisplayName,
-      userPhotoURL,
-      message,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const docRef = await addDoc(cheerRef, cheer);
-    return { id: docRef.id, ...cheer } as QuestCheer;
-  } catch (error) {
-    console.error('응원 메시지 작성 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function getQuestCheers(questId: string): Promise<QuestCheer[]> {
-  try {
-    const q = query(
-      collection(db, 'quests', questId, 'cheers'),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as QuestCheer[];
-  } catch (error) {
-    console.error('응원 메시지 목록을 가져오는 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export async function getQuests(userId: string) {
-  if (!userId) {
-    console.error('유저 ID가 없습니다.');
-    return [];
-  }
-
-  try {
-    const questsRef = collection(db, 'quests');
-    const q = query(questsRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...(doc.data() as DocumentData)
-    })) as Quest[];
-  } catch (error) {
-    console.error('퀘스트 목록 조회 오류:', error);
-    throw error;
-  }
-}
-
-// 리다이렉트 결과 확인 함수 수정
-export const getGoogleRedirectResult = async () => {
-  try {
-    const { getRedirectResult } = await import('firebase/auth');
-    const result = await getRedirectResult(auth);
-    
-    if (result) {
-      // 로그인 성공 시 세션스토리지에 상태 저장
-      sessionStorage.setItem('auth_redirect_complete', 'true');
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('리다이렉트 결과 확인 오류:', error);
-    // 세션스토리지 접근 불가 시 로컬스토리지 시도
-    if (error instanceof DOMException && error.name === 'SecurityError') {
-      try {
-        localStorage.setItem('auth_redirect_complete', 'true');
-      } catch (e) {
-        console.error('로컬스토리지 접근 오류:', e);
-      }
-    }
-    throw error;
-  }
-};
-
-export { app, auth, db }; 
+export {
+  app,
+  auth,
+  db,
+  signInWithGoogle,
+  signOutUser,
+  getGoogleRedirectResult,
+  initializeAuth,
+}; 

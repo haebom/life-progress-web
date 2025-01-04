@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db, signInWithGoogle, getGoogleRedirectResult } from '@/lib/firebase';
+import { db, signInWithGoogle, getGoogleRedirectResult, initializeAuth } from '@/lib/firebase';
 import useStore from '@/store/useStore';
 import type { User } from '@/types';
 
@@ -16,13 +16,17 @@ export default function LoginPage() {
 
   const handleUserLogin = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
+      console.log('사용자 로그인 처리 시작:', firebaseUser.uid);
       setLoading(true);
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      
       if (userDoc.exists()) {
+        console.log('사용자 문서 찾음');
         const userData = userDoc.data() as User;
         setUser(userData);
         router.push('/dashboard');
       } else {
+        console.log('신규 사용자, 초기 설정으로 이동');
         router.push('/initial-setup');
       }
     } catch (error) {
@@ -34,13 +38,27 @@ export default function LoginPage() {
   }, [router, setUser]);
 
   useEffect(() => {
+    console.log('로그인 페이지 마운트');
+    
+    // Auth 상태 변경 감지
+    const unsubscribe = initializeAuth((user) => {
+      if (user) {
+        console.log('Auth 상태: 로그인됨');
+        handleUserLogin(user);
+      } else {
+        console.log('Auth 상태: 로그인되지 않음');
+      }
+    });
+
     const checkRedirectResult = async () => {
       try {
+        console.log('리다이렉트 결과 확인 시작');
         // 이미 처리된 리다이렉트인지 확인
         const isProcessed = sessionStorage.getItem('auth_redirect_complete') || 
                           localStorage.getItem('auth_redirect_complete');
         
         if (isProcessed) {
+          console.log('이미 처리된 리다이렉트');
           sessionStorage.removeItem('auth_redirect_complete');
           localStorage.removeItem('auth_redirect_complete');
           return;
@@ -49,14 +67,20 @@ export default function LoginPage() {
         setLoading(true);
         const result = await getGoogleRedirectResult();
         if (result?.user) {
+          console.log('리다이렉트 결과로 사용자 찾음');
           await handleUserLogin(result.user);
         }
       } catch (error) {
         console.error('리다이렉트 결과 확인 중 오류:', error);
         if (error instanceof Error) {
+          const errorMessage = error.message || '';
           setError(
-            error.message.includes('redirect_uri_mismatch')
+            errorMessage.includes('redirect_uri_mismatch')
               ? '로그인 설정이 올바르지 않습니다. 관리자에게 문의해주세요.'
+              : errorMessage.includes('popup_closed_by_user')
+              ? '로그인이 취소되었습니다.'
+              : errorMessage.includes('auth/invalid-credential')
+              ? '인증 정보가 올바르지 않습니다.'
               : '로그인 처리 중 오류가 발생했습니다.'
           );
         }
@@ -66,6 +90,11 @@ export default function LoginPage() {
     };
 
     checkRedirectResult();
+    
+    return () => {
+      console.log('로그인 페이지 언마운트');
+      unsubscribe();
+    };
   }, [handleUserLogin]);
 
   const handleGoogleLogin = async () => {
@@ -73,6 +102,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('구글 로그인 시작');
       await signInWithGoogle();
       // 리다이렉트가 발생하므로 여기 이후의 코드는 실행되지 않습니다.
     } catch (error) {
