@@ -7,9 +7,8 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
-  output: 'export',
   images: {
-    unoptimized: true,
+    domains: ['lh3.googleusercontent.com'],
   },
   webpack: (config) => {
     config.resolve.fallback = {
