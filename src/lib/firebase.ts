@@ -401,4 +401,19 @@ export async function getQuestCheers(questId: string): Promise<QuestCheer[]> {
   }
 }
 
+export async function getQuests(userId: string) {
+  try {
+    const questsRef = collection(db, 'quests');
+    const q = query(questsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Quest[];
+  } catch (error) {
+    console.error('퀘스트 목록 조회 오류:', error);
+    throw error;
+  }
+}
+
 export { app, auth, db }; 
