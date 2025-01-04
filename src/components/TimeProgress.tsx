@@ -2,7 +2,34 @@
 
 import { useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { QuestItem, getUserQuests, updateQuestStatus } from '../lib/notion';
+import type { QuestItem } from '@/types/notion';
+
+// 재사용 가능한 에러 바운더리 컴포넌트
+function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('TimeProgress 컴포넌트 에러:', error);
+      setHasError(true);
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+        <p className="text-red-700 dark:text-red-200">
+          컴포넌트 로딩 중 오류가 발생했습니다. 페이지를 새로고침 해주세요.
+        </p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 interface TimeProgressProps {
   birthDate?: Timestamp | Date | string;
@@ -19,6 +46,7 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
   const [remaining, setRemaining] = useState(0);
   const [quests, setQuests] = useState<QuestItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
   const [stats, setStats] = useState({
     days: 0,
     months: 0,
@@ -30,32 +58,51 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
 
   // 퀘스트 목록 가져오기
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchQuests = async () => {
       if (!userId) return;
-      setLoading(true);
-      const userQuests = await getUserQuests(userId);
-      setQuests(userQuests);
-      setLoading(false);
+      
+      try {
+        const response = await fetch(
+          `/api/notion?action=getQuests&userId=${encodeURIComponent(userId)}`,
+          { signal: controller.signal }
+        );
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || '퀘스트를 불러오는 중 오류가 발생했습니다.');
+        }
+        
+        const data = await response.json();
+        if (isMounted) {
+          setQuests(data);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+        console.error('퀘스트 로딩 중 오류:', err);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : '퀘스트를 불러오는 중 오류가 발생했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
 
     fetchQuests();
-    // 5분마다 퀘스트 목록 갱신 (폴링 방식)
-    const interval = setInterval(fetchQuests, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [userId]);
 
-  // 퀘스트 완료 처리
-  const handleCompleteQuest = async (questId: string) => {
-    const success = await updateQuestStatus(questId, 'Done', new Date().toISOString());
-    if (success) {
-      setQuests(quests.map(quest => 
-        quest.id === questId 
-          ? { ...quest, status: 'Done', completedAt: new Date().toISOString() }
-          : quest
-      ));
-    }
-  };
-
+  // 나이 계산 로직
   useEffect(() => {
     if (!birthDate) return;
 
@@ -78,11 +125,11 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
       
       // 상세 통계 계산
       const days = Math.floor(ageInMs / (1000 * 60 * 60 * 24));
-      const months = Math.floor(days / 30.44); // 평균 월 길이 사용
-      const seasons = Math.floor(months / 3); // 계절 수
-      const weekends = Math.floor(days / 7) * 2; // 주말 일수 (토,일)
+      const months = Math.floor(days / 30.44);
+      const seasons = Math.floor(months / 3);
+      const weekends = Math.floor(days / 7) * 2;
       const hours = Math.floor(ageInMs / (1000 * 60 * 60));
-      const sunrises = days; // 일출 횟수 (하루에 한 번)
+      const sunrises = days;
 
       setCurrentAge(ageInYears);
       setRemaining(lifeExpectancy - ageInYears);
@@ -99,6 +146,14 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
     return (
       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
         <p className="text-yellow-700 dark:text-yellow-200">생년월일 또는 기대수명 정보가 없습니다. 프로필에서 정보를 입력해주세요.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+        <p className="text-red-700 dark:text-red-200">{error}</p>
       </div>
     );
   }
@@ -147,6 +202,7 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
         </div>
       </div>
 
+      {/* 퀘스트 목록 섹션 */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
         <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
           진행 중인 퀘스트
@@ -170,17 +226,10 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
                 <div>
                   <h4 className="font-medium text-gray-800 dark:text-gray-200">{quest.title}</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    시작일: {new Date(quest.startedAt || '').toLocaleDateString()}
+                    상태: {quest.status}
+                    {quest.startedAt && ` • 시작일: ${new Date(quest.startedAt).toLocaleDateString()}`}
                   </p>
                 </div>
-                {quest.status !== 'Done' && (
-                  <button
-                    onClick={() => handleCompleteQuest(quest.id)}
-                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                  >
-                    완료
-                  </button>
-                )}
               </div>
             ))}
           </div>
@@ -190,4 +239,11 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
   );
 };
 
-export default TimeProgress; 
+// 에러 바운더리로 감싸서 내보내기
+export default function TimeProgressWithErrorBoundary(props: TimeProgressProps) {
+  return (
+    <ErrorBoundary>
+      <TimeProgress {...props} />
+    </ErrorBoundary>
+  );
+} 
