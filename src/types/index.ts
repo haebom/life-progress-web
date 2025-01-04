@@ -67,6 +67,7 @@ export interface GameStats {
   streak: number;
   lastActive: Timestamp | null;
   achievements: Achievement[];
+  nextLevelExp: number;
 }
 
 export interface Block {

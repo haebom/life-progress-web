@@ -6,6 +6,8 @@ import useStore from '@/store/useStore';
 import { getUserProfile } from '@/lib/auth';
 import type { User } from '@/types';
 import Image from 'next/image';
+import { YearProgress } from './YearProgress';
+import { MessageManager } from './MessageManager';
 
 interface ProfileViewProps {
   userId: string;
@@ -101,6 +103,14 @@ export function ProfileView({ userId }: ProfileViewProps) {
             </h1>
             <p className="text-gray-600">{profileUser.email}</p>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <YearProgress 
+            level={profileUser.gameStats.level}
+            experience={profileUser.gameStats.experience}
+            nextLevelExp={profileUser.gameStats.nextLevelExp}
+          />
         </div>
 
         {profileUser.bio && (
