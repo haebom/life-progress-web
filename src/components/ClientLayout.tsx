@@ -17,11 +17,11 @@ export default function ClientLayout({
   }, []);
 
   return (
-    <>
-      <main className="pb-16">
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-1">
         {children}
       </main>
       <BottomNavigation />
-    </>
+    </div>
   );
 } 

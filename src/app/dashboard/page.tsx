@@ -65,7 +65,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl min-h-screen pb-20">
+    <div className="w-full max-w-md mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl min-h-[calc(100vh-4rem)]">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">대시보드</h1>
         <button
