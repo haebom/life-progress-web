@@ -72,8 +72,8 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
 
   if (!birthDate || !lifeExpectancy) {
     return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-700">생년월일 또는 기대수명 정보가 없습니다. 프로필에서 정보를 입력해주세요.</p>
+      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <p className="text-yellow-700 dark:text-yellow-200">생년월일 또는 기대수명 정보가 없습니다. 프로필에서 정보를 입력해주세요.</p>
       </div>
     );
   }
@@ -81,41 +81,41 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
   const progressPercentage = (currentAge / lifeExpectancy) * 100;
 
   return (
-    <div className="p-4 bg-white">
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <div className="text-center mb-6">
-        <h2 className="text-4xl font-bold text-blue-600">
+        <h2 className="text-4xl font-bold text-blue-600 dark:text-blue-400">
           {currentAge.toFixed(8)}
         </h2>
-        <p className="text-sm text-gray-500 mt-1">내가 보낸 시간</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">내가 보낸 시간</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <p className="text-2xl font-bold text-blue-600">{stats.days.toLocaleString()}</p>
-          <p className="text-xs text-blue-600">일째의 여정</p>
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.days.toLocaleString()}</p>
+          <p className="text-xs text-blue-600 dark:text-blue-400">일째의 여정</p>
         </div>
-        <div className="bg-green-50 p-3 rounded-lg">
-          <p className="text-2xl font-bold text-green-600">{stats.seasons.toLocaleString()}</p>
-          <p className="text-xs text-green-600">번의 계절 변화</p>
+        <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.seasons.toLocaleString()}</p>
+          <p className="text-xs text-green-600 dark:text-green-400">번의 계절 변화</p>
         </div>
-        <div className="bg-yellow-50 p-3 rounded-lg">
-          <p className="text-2xl font-bold text-yellow-600">{stats.weekends.toLocaleString()}</p>
-          <p className="text-xs text-yellow-600">일의 주말</p>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.weekends.toLocaleString()}</p>
+          <p className="text-xs text-yellow-600 dark:text-yellow-400">일의 주말</p>
         </div>
-        <div className="bg-purple-50 p-3 rounded-lg">
-          <p className="text-2xl font-bold text-purple-600">{stats.sunrises.toLocaleString()}</p>
-          <p className="text-xs text-purple-600">번의 일출</p>
+        <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.sunrises.toLocaleString()}</p>
+          <p className="text-xs text-purple-600 dark:text-purple-400">번의 일출</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-blue-500 transition-all duration-500"
+            className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-500"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <p className="text-sm text-center text-gray-500">
+        <p className="text-sm text-center text-gray-500 dark:text-gray-400">
           남은 시간: {remaining.toFixed(8)}년
         </p>
       </div>

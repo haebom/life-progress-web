@@ -44,14 +44,27 @@ const db = getFirestore(app);
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({
-    prompt: 'select_account'
+    prompt: 'select_account',
+    // iOS Safari에서 더 나은 호환성을 위한 설정
+    iosClientId: process.env.NEXT_PUBLIC_FIREBASE_IOS_CLIENT_ID,
   });
   
   try {
+    // 팝업 방식으로 로그인 시도
     const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+    
+    // 로그인 성공 시 쿠키에 세션 정보 저장 (7일 유효)
+    document.cookie = `auth-session=${result.user.uid};path=/;max-age=604800;SameSite=Strict;Secure`;
+    
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Google 로그인 실패:', error);
+    
+    // iOS Safari에서 팝업이 차단된 경우 처리
+    if (error.code === 'auth/popup-blocked') {
+      alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+    }
+    
     throw error;
   }
 }
@@ -59,10 +72,18 @@ export async function signInWithGoogle() {
 export async function signOutUser() {
   try {
     await signOut(auth);
+    // 로그아웃 시 세션 쿠키 삭제
+    document.cookie = 'auth-session=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   } catch (error) {
     console.error('로그아웃 실패:', error);
     throw error;
   }
+}
+
+export function checkAuthSession(): string | null {
+  const cookies = document.cookie.split(';');
+  const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('auth-session='));
+  return sessionCookie ? sessionCookie.split('=')[1] : null;
 }
 
 export async function fetchUserData(uid: string): Promise<User | null> {
