@@ -1,6 +1,6 @@
 'use client';
 
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -35,7 +35,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -369,4 +370,4 @@ export async function getQuestCheers(questId: string): Promise<QuestCheer[]> {
   }
 }
 
-export { auth, db }; 
+export { app, auth, db }; 
