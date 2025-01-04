@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
+  browserPopupRedirectResolver,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -42,8 +43,12 @@ const db = getFirestore(app);
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
+  
   try {
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
     return result.user;
   } catch (error) {
     console.error('Google 로그인 실패:', error);
