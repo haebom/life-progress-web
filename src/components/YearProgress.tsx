@@ -59,7 +59,7 @@ export const YearProgress: React.FC<YearProgressProps> = ({
       <div className="mb-6">
         <div className="mb-2 flex justify-between text-sm text-gray-600">
           <span>{year || localTime.getFullYear()}년</span>
-          <span>{progress.toFixed(1)}%</span>
+          <span>{progress.toFixed(3)}%</span>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
           <div 

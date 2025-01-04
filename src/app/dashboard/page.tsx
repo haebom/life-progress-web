@@ -52,15 +52,15 @@ export default function Dashboard() {
     <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-2xl font-bold mb-6">대시보드</h1>
       
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg shadow-sm">
           <TimeProgress 
             birthDate={user?.birthDate} 
             lifeExpectancy={user?.lifeExpectancy} 
           />
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm">
           <YearProgress 
             level={user?.gameStats?.level || 1}
             experience={user?.gameStats?.experience || 0}
