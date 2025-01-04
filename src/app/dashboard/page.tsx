@@ -3,15 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { getUserQuests } from '@/lib/gameSystem';
 import TimeProgress from '@/components/TimeProgress';
 import { YearProgress } from '@/components/YearProgress';
-import type { Quest } from '@/types';
+import type { QuestItem } from '@/lib/notion-server';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<QuestItem[]>([]);
   const [error, setError] = useState<string>('');
   const [notionConnected, setNotionConnected] = useState(false);
 
@@ -43,16 +42,24 @@ export default function Dashboard() {
           return;
         }
 
-        const userQuests = await getUserQuests(user.uid);
-        setQuests(userQuests);
+        const response = await fetch(`/api/quests?userId=${encodeURIComponent(user.uid)}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || '퀘스트를 불러오는 중 오류가 발생했습니다.');
+        }
+
+        const questData = await response.json();
+        setQuests(questData);
       } catch (err) {
         console.error('퀘스트 로딩 중 오류:', err);
-        setError('퀘스트를 불러오는 중 오류가 발생했습니다.');
+        setError(err instanceof Error ? err.message : '퀘스트를 불러오는 중 오류가 발생했습니다.');
       }
     };
 
-    fetchQuests();
-  }, [user, loading, router]);
+    if (notionConnected) {
+      fetchQuests();
+    }
+  }, [user, loading, router, notionConnected]);
 
   const handleNotionConnect = () => {
     window.location.href = '/api/auth/notion';
@@ -113,7 +120,10 @@ export default function Dashboard() {
               {quests.map((quest) => (
                 <li key={quest.id} className="pb-4 border-b border-gray-100 last:border-0">
                   <h3 className="font-medium">{quest.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{quest.description}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    상태: {quest.status}
+                    {quest.startedAt && ` • 시작일: ${new Date(quest.startedAt).toLocaleDateString()}`}
+                  </p>
                 </li>
               ))}
             </ul>

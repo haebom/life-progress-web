@@ -1,9 +1,5 @@
-'use client';
-
-import { useEffect } from 'react';
-import { initPushNotifications, removePushNotificationListeners } from '@/lib/pushNotifications';
 import { Inter } from 'next/font/google';
-import { BottomNavigation } from '@/components/BottomNavigation';
+import ClientLayout from '../components/ClientLayout';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -18,20 +14,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    initPushNotifications();
-    return () => {
-      removePushNotificationListeners();
-    };
-  }, []);
-
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <main className="pb-16">
+        <ClientLayout>
           {children}
-        </main>
-        <BottomNavigation />
+        </ClientLayout>
       </body>
     </html>
   );
