@@ -7,7 +7,6 @@ import QuestList from '@/components/QuestList';
 import QuestCreateModal from '@/components/QuestCreateModal';
 import { TimeStatsDashboard } from '@/components/TimeStatsDashboard';
 import TimeProgress from '@/components/TimeProgress';
-import LifeProgress from '@/components/LifeProgress';
 import { getQuests, createQuest } from '@/lib/firebase';
 import type { Quest } from '@/types';
 
@@ -57,7 +56,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl">
+    <div className="w-full max-w-md mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl min-h-screen pb-20">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">대시보드</h1>
         <button
@@ -78,7 +77,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-4">
-          <LifeProgress user={user} />
+          <div className="text-center py-4">
+            <p className="text-lg font-medium text-gray-700 mb-2">매일 조금씩, 더 나은 내일을 향해 나아가요</p>
+            <p className="text-sm text-gray-500">작은 진전이라도 괜찮아요. 한 걸음씩 전진하는 것이 중요합니다.</p>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-4">
@@ -86,15 +88,26 @@ export default function DashboardPage() {
           <TimeStatsDashboard blocks={user.blocks || {}} />
         </div>
 
-        {error ? (
-          <div className="text-center py-4">
-            <p className="text-red-600">{error}</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <h2 className="text-lg font-semibold mb-4">진행 중인 퀘스트</h2>
+          {error ? (
+            <div className="text-center py-4">
+              <p className="text-red-600">{error}</p>
+            </div>
+          ) : quests.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-4">진행 중인 퀘스트가 없습니다.</p>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+              >
+                첫 퀘스트 생성하기
+              </button>
+            </div>
+          ) : (
             <QuestList quests={quests} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {isCreateModalOpen && (
