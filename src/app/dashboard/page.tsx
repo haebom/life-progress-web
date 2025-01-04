@@ -57,42 +57,45 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+    <div className="max-w-lg mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">대시보드</h1>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm"
+        >
+          새 퀘스트 생성
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-sm p-4">
           <TimeProgress 
             birthDate={user.birthDate} 
             lifeExpectancy={user.lifeExpectancy} 
             userId={user.uid}
           />
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+
+        <div className="bg-white rounded-lg shadow-sm p-4">
           <LifeProgress user={user} />
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">시간 통계</h2>
-        <TimeStatsDashboard blocks={user.blocks || {}} />
-      </div>
-
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">대시보드</h1>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          새 퀘스트 생성
-        </button>
-      </div>
-
-      {error ? (
-        <div className="text-center py-8">
-          <p className="text-red-600">{error}</p>
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <h2 className="text-lg font-semibold mb-4">시간 통계</h2>
+          <TimeStatsDashboard blocks={user.blocks || {}} />
         </div>
-      ) : (
-        <QuestList quests={quests} />
-      )}
+
+        {error ? (
+          <div className="text-center py-4">
+            <p className="text-red-600">{error}</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <QuestList quests={quests} />
+          </div>
+        )}
+      </div>
 
       {isCreateModalOpen && (
         <QuestCreateModal
