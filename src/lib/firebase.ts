@@ -90,24 +90,45 @@ function openInExternalBrowser(url: string): void {
 
 // Google 로그인 프로바이더 설정
 const provider = new GoogleAuthProvider();
-provider.setCustomParameters({
+const customParams: { [key: string]: string } = {
   prompt: 'select_account'
-});
+};
+
+if (typeof window !== 'undefined') {
+  customParams.redirect_uri = `${window.location.origin}/__/auth/handler`;
+}
+
+provider.setCustomParameters(customParams);
 
 // 브라우저 환경 체크
 const isBrowser = typeof window !== 'undefined';
 
-// 스토리지 사용 가능 여부 체크
-const isStorageAvailable = (type: 'sessionStorage' | 'localStorage'): boolean => {
-  if (!isBrowser) return false;
-  try {
-    const storage = window[type];
-    const x = '__storage_test__';
-    storage.setItem(x, x);
-    storage.removeItem(x);
-    return true;
-  } catch (e) {
-    return false;
+// 안전한 로컬 스토리지 접근
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (!isBrowser) return null;
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('로컬 스토리지 읽기 실패:', e);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (!isBrowser) return;
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('로컬 스토리지 쓰기 실패:', e);
+    }
+  },
+  removeItem: (key: string): void => {
+    if (!isBrowser) return;
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('로컬 스토리지 삭제 실패:', e);
+    }
   }
 };
 
@@ -116,8 +137,14 @@ const validateAuthDomain = (): boolean => {
   if (!isBrowser) return true;
   
   const currentDomain = window.location.hostname;
+  const currentOrigin = window.location.origin;
+  console.log('현재 도메인:', currentDomain);
+  console.log('현재 Origin:', currentOrigin);
+  
   const isValid = AUTHORIZED_DOMAINS.some(domain => 
-    currentDomain === domain || currentDomain.endsWith(`.${domain}`)
+    currentDomain === domain || 
+    currentDomain.endsWith(`.${domain}`) ||
+    domain.includes(currentDomain)
   );
   
   if (!isValid) {
@@ -136,10 +163,6 @@ const signInWithGoogle = async () => {
     throw new Error(`승인되지 않은 도메인에서의 접근입니다. (현재 도메인: ${window.location.hostname})`);
   }
 
-  if (!isStorageAvailable('sessionStorage')) {
-    throw new Error('세션 스토리지를 사용할 수 없습니다.');
-  }
-
   try {
     if (isInAppBrowser()) {
       console.log('인앱 브라우저 감지됨');
@@ -147,6 +170,10 @@ const signInWithGoogle = async () => {
       openInExternalBrowser(currentUrl);
       return;
     }
+
+    // 브라우저 상태 저장
+    safeLocalStorage.setItem('auth_pending', 'true');
+    safeLocalStorage.setItem('auth_redirect_url', window.location.href);
 
     // Safari 브라우저에서는 팝업 사용
     if (isSafariBrowser()) {
@@ -161,27 +188,39 @@ const signInWithGoogle = async () => {
   } catch (error) {
     console.error('Google 로그인 중 오류:', error);
     if (error instanceof Error) {
-      // Firebase Auth 에러 상세 로깅
       console.error('에러 타입:', error.name);
       console.error('에러 메시지:', error.message);
       if ('code' in error) {
         console.error('에러 코드:', (error as { code: string }).code);
       }
     }
+    // 에러 발생 시 상태 초기화
+    safeLocalStorage.removeItem('auth_pending');
+    safeLocalStorage.removeItem('auth_redirect_url');
     throw error;
   }
 };
 
-// 리다이렉트 결과 확인 함수
+// 리다이렉트 결과 확인 함수 업데이트
 const getGoogleRedirectResult = async () => {
   console.log('리다이렉트 결과 확인 시작');
   try {
+    // 이전 상태 확인
+    const isPending = safeLocalStorage.getItem('auth_pending');
+    const redirectUrl = safeLocalStorage.getItem('auth_redirect_url');
+    console.log('인증 상태:', { isPending, redirectUrl });
+
     const result = await getRedirectResult(auth);
+    
+    // 상태 초기화
+    safeLocalStorage.removeItem('auth_pending');
+    safeLocalStorage.removeItem('auth_redirect_url');
+
     if (result) {
       console.log('리다이렉트 결과 성공:', result.user.uid);
-      sessionStorage.setItem('auth_redirect_complete', 'true');
       return result;
     }
+    
     console.log('리다이렉트 결과 없음');
     return null;
   } catch (error) {
@@ -190,6 +229,9 @@ const getGoogleRedirectResult = async () => {
       console.error('에러 타입:', error.name);
       console.error('에러 메시지:', error.message);
     }
+    // 에러 발생 시 상태 초기화
+    safeLocalStorage.removeItem('auth_pending');
+    safeLocalStorage.removeItem('auth_redirect_url');
     throw error;
   }
 };
