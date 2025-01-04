@@ -1,10 +1,13 @@
-'use client';
-
 import { Inter } from 'next/font/google';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
+
+export const metadata = {
+  title: 'Life Progress',
+  description: '인생의 진행도를 시각화하고 목표를 관리하세요',
+};
 
 export default function RootLayout({
   children,
@@ -13,10 +16,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <head>
-        <title>Life Progress</title>
-        <meta name="description" content="인생의 진행도를 시각화하고 목표를 관리하세요" />
-      </head>
       <body className={inter.className}>
         <main className="pb-16">
           {children}
