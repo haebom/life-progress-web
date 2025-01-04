@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import TimeProgress from '@/components/TimeProgress';
 import { YearProgress } from '@/components/YearProgress';
-import type { QuestItem } from '@/lib/notion-server';
+import type { QuestItem } from '@/types/notion';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -42,7 +42,7 @@ export default function Dashboard() {
           return;
         }
 
-        const response = await fetch(`/api/quests?userId=${encodeURIComponent(user.uid)}`);
+        const response = await fetch(`/api/notion?action=getQuests&userId=${encodeURIComponent(user.uid)}`);
         if (!response.ok) {
           const error = await response.json();
           throw new Error(error.error || '퀘스트를 불러오는 중 오류가 발생했습니다.');

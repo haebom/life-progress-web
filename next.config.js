@@ -7,15 +7,15 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
-  experimental: {
-    serverActions: true,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,
   },
+  images: {
+    domains: ['lh3.googleusercontent.com'],
+  }
 };
 
 module.exports = withPWA(nextConfig); 
