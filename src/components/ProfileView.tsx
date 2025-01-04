@@ -1,142 +1,147 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import useStore from '@/store/useStore';
-import { getUserProfile } from '@/lib/auth';
-import type { User } from '@/types';
 import Image from 'next/image';
-import { YearProgress } from './YearProgress';
+import { FaTrophy, FaStar, FaMedal } from 'react-icons/fa';
+import { User } from '@/types';
+import StatCard from './StatCard';
+import { fetchUserData } from '@/lib/firebase';
 
 interface ProfileViewProps {
   userId: string;
 }
 
-export function ProfileView({ userId }: ProfileViewProps) {
-  const router = useRouter();
-  const { user } = useStore();
-  const [profileUser, setProfileUser] = useState<User | null>(null);
+export default function ProfileView({ userId }: ProfileViewProps) {
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/signup');
-      return;
-    }
-
-    const loadProfile = async () => {
+    const loadUserData = async () => {
       try {
-        const data = await getUserProfile(userId);
-        if (data) {
-          setProfileUser(data);
-        } else {
-          setError('사용자를 찾을 수 없습니다.');
-        }
-      } catch (error) {
-        console.error('프로필 불러오기 실패:', error);
-        setError('프로필을 불러오는 중 오류가 발생했습니다.');
+        setIsLoading(true);
+        setError(null);
+        const userData = await fetchUserData(userId);
+        setUser(userData);
+      } catch (err) {
+        console.error('프로필 로딩 실패:', err);
+        setError('프로필 정보를 불러오는데 실패했습니다.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadProfile();
-  }, [user, userId, router]);
-
-  if (!user) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">로그인이 필요합니다.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">프로필을 불러오는 중...</p>
-      </div>
-    );
-  }
+    loadUserData();
+  }, [userId]);
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
-
-  if (!profileUser) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">사용자를 찾을 수 없습니다.</p>
+      <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p className="text-red-600 dark:text-red-400">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-600 dark:text-red-200 rounded-lg hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center mb-6">
-          {profileUser.photoURL ? (
-            <div className="relative w-16 h-16 mr-4">
-              <Image
-                src={profileUser.photoURL}
-                alt={profileUser.displayName || '사용자 프로필'}
-                fill
-                className="rounded-full object-cover"
-              />
-            </div>
+    <div className="space-y-6">
+      {/* 프로필 헤더 */}
+      <div className="flex flex-col sm:flex-row items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div className="relative w-24 h-24">
+          {isLoading ? (
+            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+          ) : user?.photoURL ? (
+            <Image
+              src={user.photoURL}
+              alt={user.displayName || user.name || '프로필 이미지'}
+              width={96}
+              height={96}
+              className="rounded-full"
+            />
           ) : (
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mr-4">
-              <span className="text-2xl text-gray-500">
-                {(profileUser.displayName || '?')[0]}
+            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+              <span className="text-2xl text-gray-400 dark:text-gray-500">
+                {(user?.displayName || user?.name || '?')[0]}
               </span>
             </div>
           )}
-          <div>
-            <h1 className="text-2xl font-bold">
-              {profileUser.displayName || '이름 없음'}
-            </h1>
-            <p className="text-gray-600">{profileUser.email}</p>
-          </div>
         </div>
-
-        <div className="mb-8">
-          <YearProgress 
-            level={profileUser.gameStats.level}
-            experience={profileUser.gameStats.experience}
-            nextLevelExp={profileUser.gameStats.nextLevelExp}
-          />
+        
+        <div className="text-center sm:text-left">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            {isLoading ? (
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
+            ) : (
+              user?.displayName || user?.name || '이름 없음'
+            )}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {isLoading ? (
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mt-2 animate-pulse" />
+            ) : (
+              user?.email || '이메일 없음'
+            )}
+          </p>
         </div>
+      </div>
 
-        {profileUser.bio && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">소개</h2>
-            <p className="text-gray-700">{profileUser.bio}</p>
-          </div>
-        )}
+      {/* 통계 카드 그리드 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          title="퀘스트"
+          value={user?.gameStats.questsCompleted || 0}
+          icon={FaTrophy}
+          description="완료한 퀘스트 수"
+          isLoading={isLoading}
+          formatOptions={{ useAbbreviation: true }}
+        />
+        <StatCard
+          title="레벨"
+          value={user?.gameStats.level || 1}
+          icon={FaStar}
+          description="현재 달성 레벨"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="포인트"
+          value={user?.gameStats.points || 0}
+          icon={FaMedal}
+          description="획득한 총 포인트"
+          isLoading={isLoading}
+          formatOptions={{ useAbbreviation: true }}
+        />
+      </div>
 
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">퀘스트</p>
-            <p className="text-lg font-semibold">
-              {profileUser.gameStats.questsCompleted}
-            </p>
+      {/* 추가 프로필 정보 */}
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          상세 정보
+        </h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500 dark:text-gray-400">가입일</span>
+            <span className="text-gray-900 dark:text-white">
+              {isLoading ? (
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+              ) : (
+                user?.createdAt?.toDate().toLocaleDateString() || '알 수 없음'
+              )}
+            </span>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">레벨</p>
-            <p className="text-lg font-semibold">
-              {profileUser.gameStats.level}
-            </p>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">포인트</p>
-            <p className="text-lg font-semibold">
-              {profileUser.gameStats.points}
-            </p>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500 dark:text-gray-400">최근 활동</span>
+            <span className="text-gray-900 dark:text-white">
+              {isLoading ? (
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+              ) : (
+                user?.lastActive?.toDate().toLocaleDateString() || '알 수 없음'
+              )}
+            </span>
           </div>
         </div>
       </div>

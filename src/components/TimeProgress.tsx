@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { INSPIRATION_MESSAGES } from '@/lib/messages';
 
 interface TimeProgressProps {
   birthDate?: Timestamp | Date | string;

@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect } from 'react';
+import { initPushNotifications, removePushNotificationListeners } from '@/lib/pushNotifications';
 import { Inter } from 'next/font/google';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import './globals.css';
@@ -14,6 +18,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    initPushNotifications();
+    return () => {
+      removePushNotificationListeners();
+    };
+  }, []);
+
   return (
     <html lang="ko">
       <body className={inter.className}>

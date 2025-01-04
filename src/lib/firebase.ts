@@ -1,13 +1,8 @@
 'use client';
 
-import { getApps, initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  browserPopupRedirectResolver,
-} from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import {
   getFirestore,
   doc,
@@ -36,55 +31,59 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export async function signInWithGoogle() {
-  const provider = new GoogleAuthProvider();
-  const customParams: { [key: string]: string } = {
-    prompt: 'select_account',
-  };
+// 인앱 브라우저 감지
+export function isInAppBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
   
-  // iOS Safari에서 더 나은 호환성을 위한 설정
-  const iosClientId = process.env.NEXT_PUBLIC_FIREBASE_IOS_CLIENT_ID;
-  if (iosClientId) {
-    customParams.iosClientId = iosClientId;
-  }
+  const ua = window.navigator.userAgent;
+  return (
+    ua.includes('FBAN') || // Facebook
+    ua.includes('FBAV') || // Facebook
+    ua.includes('Twitter') || // Twitter
+    ua.includes('Instagram') || // Instagram
+    ua.includes('Line') || // Line
+    ua.includes('KAKAOTALK') // KakaoTalk
+  );
+}
+
+// Safari 브라우저 감지
+export function isSafariBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
   
-  provider.setCustomParameters(customParams);
-  
-  try {
-    // 팝업 방식으로 로그인 시도
-    const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
-    
-    // 로그인 성공 시 쿠키에 세션 정보 저장 (7일 유효)
-    document.cookie = `auth-session=${result.user.uid};path=/;max-age=604800;SameSite=Strict;Secure`;
-    
-    return result.user;
-  } catch (error: unknown) {
-    console.error('Google 로그인 실패:', error);
-    
-    // iOS Safari에서 팝업이 차단된 경우 처리
-    if (error instanceof Error && 'code' in error && error.code === 'auth/popup-blocked') {
-      alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
-    }
-    
-    throw error;
+  const ua = window.navigator.userAgent;
+  return ua.includes('Safari') && !ua.includes('Chrome');
+}
+
+// 외부 브라우저로 열기 유도
+export function openInExternalBrowser(url: string): void {
+  if (isInAppBrowser()) {
+    // 모바일 Safari로 열기
+    window.location.href = `googlechrome://navigate?url=${encodeURIComponent(url)}`;
+    // 시간 차를 두고 Safari로 시도
+    setTimeout(() => {
+      window.location.href = url;
+    }, 2000);
   }
 }
 
-export async function signOutUser() {
-  try {
-    await signOut(auth);
-    // 로그아웃 시 세션 쿠키 삭제
-    document.cookie = 'auth-session=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-  } catch (error) {
-    console.error('로그아웃 실패:', error);
-    throw error;
+export const signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  
+  if (Capacitor.isNativePlatform()) {
+    // 네이티브 환경에서는 redirect 방식 사용
+    const { signInWithRedirect } = await import('firebase/auth');
+    return signInWithRedirect(auth, provider);
+  } else {
+    // 웹 환경에서는 popup 방식 사용
+    return signInWithPopup(auth, provider);
   }
-}
+};
+
+export const signOutUser = () => signOut(auth);
 
 export function checkAuthSession(): string | null {
   const cookies = document.cookie.split(';');

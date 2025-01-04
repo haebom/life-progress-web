@@ -16,19 +16,22 @@ export interface Quest {
   category?: string;
   tags?: string[];
   isShared?: boolean;
-  isPublic?: boolean;
+  isPublic: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   rewards: {
     exp: number;
     points: number;
   };
+  likes: number;
 }
 
 export interface QuestComment {
   id: string;
   questId: string;
   userId: string;
+  userDisplayName: string;
+  userPhotoURL: string | null;
   content: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -38,6 +41,8 @@ export interface QuestCheer {
   id: string;
   questId: string;
   userId: string;
+  userDisplayName: string;
+  userPhotoURL: string | null;
   message: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -100,11 +105,13 @@ export interface User {
   friends?: string[];
   followers?: string[];
   following?: string[];
+  isFollowing?: boolean;
   gameStats: GameStats;
   blocks: BlockMap;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  exp: number;
+  lastLoginAt: Timestamp;
+  quests: number;
   level: number;
   points: number;
   streak: number;

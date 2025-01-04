@@ -1,18 +1,13 @@
-import { Metadata } from 'next';
-import { ProfileView } from '@/components/ProfileView';
+'use client';
 
-type PageProps = {
+import ProfileView from '@/components/ProfileView';
+
+interface ProfilePageProps {
   params: {
     userId: string;
   };
-};
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  return {
-    title: `User Profile - ${params.userId}`,
-  };
 }
 
-export default function Page({ params }: PageProps) {
+export default function ProfilePage({ params }: ProfilePageProps) {
   return <ProfileView userId={params.userId} />;
 } 
