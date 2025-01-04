@@ -51,7 +51,8 @@ const AUTHORIZED_DOMAINS = [
   'localhost:3000',
   'blocks-1b622.firebaseapp.com',
   'blocks-1b622.web.app',
-  'life-progress.vercel.app'
+  'life-progress.vercel.app',
+  'life-progress-web.vercel.app'
 ];
 
 // 인앱 브라우저 감지
