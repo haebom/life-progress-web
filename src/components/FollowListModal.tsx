@@ -57,7 +57,9 @@ export function FollowListModal({
                   </div>
                   {onFollowToggle && currentUserId !== user.id && user.id && (
                     <button
-                      onClick={() => onFollowToggle(user.id)}
+                      onClick={() => {
+                        if (user.id) onFollowToggle(user.id);
+                      }}
                       className="ml-4 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       팔로우

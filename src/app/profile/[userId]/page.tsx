@@ -1,10 +1,22 @@
+import { Metadata } from 'next';
 import { ProfileView } from '@/components/ProfileView';
 
-type Props = {
-  params: { userId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
+type PageParams = { userId: string };
 
-export default async function UserProfilePage({ params }: Props) {
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: PageParams 
+}): Promise<Metadata> {
+  return {
+    title: `User Profile - ${params.userId}`,
+  };
+}
+
+export default async function Page({ 
+  params 
+}: { 
+  params: PageParams 
+}) {
   return <ProfileView userId={params.userId} />;
 } 
