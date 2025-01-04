@@ -6,6 +6,7 @@ import useStore from '@/store/useStore';
 import QuestList from '@/components/QuestList';
 import QuestCreateModal from '@/components/QuestCreateModal';
 import { TimeStatsDashboard } from '@/components/TimeStatsDashboard';
+import TimeProgress from '@/components/TimeProgress';
 import LifeProgress from '@/components/LifeProgress';
 import { getQuests, createQuest } from '@/lib/firebase';
 import type { Quest } from '@/types';
@@ -59,12 +60,20 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">시간 통계</h2>
-          <TimeStatsDashboard blocks={user.blocks || {}} />
+          <TimeProgress 
+            birthDate={user.birthDate} 
+            lifeExpectancy={user.lifeExpectancy} 
+            userId={user.uid}
+          />
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <LifeProgress user={user} />
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4">시간 통계</h2>
+        <TimeStatsDashboard blocks={user.blocks || {}} />
       </div>
 
       <div className="flex justify-between items-center mb-8">
