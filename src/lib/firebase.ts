@@ -9,8 +9,7 @@ import {
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-  type User as FirebaseUser,
-  type AuthError
+  type User as FirebaseUser
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -27,43 +26,33 @@ import {
   serverTimestamp,
   DocumentData,
   addDoc,
-  type FirestoreError
 } from 'firebase/firestore';
 import type { User, GameStats, Quest } from '@/types';
 
-// 필수 환경변수 체크
-const requiredEnvVars = {
-  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-} as const;
-
-Object.entries(requiredEnvVars).forEach(([key, value]) => {
-  if (!value) {
-    throw new Error(`${key} 환경변수가 설정되지 않았습니다.`);
-  }
-});
-
+// Firebase 설정
 const firebaseConfig = {
-  apiKey: requiredEnvVars.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: requiredEnvVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: requiredEnvVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyB73bnwE9jTVqiTAvb2BvginUFAgvAcZtw",
+  authDomain: "blocks-1b622.firebaseapp.com",
+  projectId: "blocks-1b622",
+  storageBucket: "blocks-1b622.firebasestorage.app",
+  messagingSenderId: "486313931623",
+  appId: "1:486313931623:web:2c81258f6c05e2bb8d75c2",
+  measurementId: "G-QZH0VBXH25"
 };
-
-// 커스텀 에러 타입 정의
-export type FirebaseError = AuthError | FirestoreError;
-
-// 로그인 상태 타입 정의
-export type AuthState = 'logged_in' | 'attempting' | 'logged_out';
 
 // Firebase 초기화
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// 승인된 도메인 목록 업데이트
+const AUTHORIZED_DOMAINS = [
+  'localhost',
+  'localhost:3000',
+  'blocks-1b622.firebaseapp.com',
+  'blocks-1b622.web.app',
+  'life-progress.vercel.app'
+];
 
 // 인앱 브라우저 감지
 function isInAppBrowser(): boolean {
@@ -120,14 +109,6 @@ const isStorageAvailable = (type: 'sessionStorage' | 'localStorage'): boolean =>
     return false;
   }
 };
-
-// 승인된 도메인 목록
-const AUTHORIZED_DOMAINS = [
-  'localhost',
-  'localhost:3000',
-  'life-progress.vercel.app',
-  'your-custom-domain.com'  // 실제 커스텀 도메인으로 교체
-];
 
 // 도메인 검증 함수 업데이트
 const validateAuthDomain = (): boolean => {
