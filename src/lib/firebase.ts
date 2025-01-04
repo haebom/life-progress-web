@@ -9,7 +9,8 @@ import {
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-  type User as FirebaseUser
+  type User as FirebaseUser,
+  type AuthError
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -26,18 +27,38 @@ import {
   serverTimestamp,
   DocumentData,
   addDoc,
+  type FirestoreError
 } from 'firebase/firestore';
 import type { User, GameStats, Quest } from '@/types';
 
+// 필수 환경변수 체크
+const requiredEnvVars = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+} as const;
+
+Object.entries(requiredEnvVars).forEach(([key, value]) => {
+  if (!value) {
+    throw new Error(`${key} 환경변수가 설정되지 않았습니다.`);
+  }
+});
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  apiKey: requiredEnvVars.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: requiredEnvVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: requiredEnvVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+// 커스텀 에러 타입 정의
+export type FirebaseError = AuthError | FirestoreError;
+
+// 로그인 상태 타입 정의
+export type AuthState = 'logged_in' | 'attempting' | 'logged_out';
 
 // Firebase 초기화
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -83,9 +104,54 @@ provider.setCustomParameters({
   prompt: 'select_account'
 });
 
+// 브라우저 환경 체크
+const isBrowser = typeof window !== 'undefined';
+
+// 스토리지 사용 가능 여부 체크
+const isStorageAvailable = (type: 'sessionStorage' | 'localStorage'): boolean => {
+  if (!isBrowser) return false;
+  try {
+    const storage = window[type];
+    const x = '__storage_test__';
+    storage.setItem(x, x);
+    storage.removeItem(x);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// 도메인 검증
+const validateAuthDomain = (): boolean => {
+  if (!isBrowser) return true;
+  
+  const allowedDomains = [
+    'localhost:3000',
+    'life-progress.vercel.app'  // 실제 배포 도메인
+  ];
+  
+  const currentDomain = window.location.host;
+  const isValid = allowedDomains.includes(currentDomain);
+  
+  if (!isValid) {
+    console.warn(`승인되지 않은 도메인에서의 접근: ${currentDomain}`);
+  }
+  
+  return isValid;
+};
+
 // Google 로그인 함수
 const signInWithGoogle = async () => {
   console.log('Google 로그인 시작');
+  
+  if (!validateAuthDomain()) {
+    throw new Error('승인되지 않은 도메인에서의 접근입니다.');
+  }
+
+  if (!isStorageAvailable('sessionStorage')) {
+    throw new Error('세션 스토리지를 사용할 수 없습니다.');
+  }
+
   try {
     if (isInAppBrowser()) {
       console.log('인앱 브라우저 감지됨');
@@ -340,15 +406,39 @@ async function createNotification(
   }
 }
 
-// Firebase 객체 정의
-const Firebase = {
+export class Firebase {
+  static app = app;
+  static auth = auth;
+  static db = db;
+
+  static isInAppBrowser = isInAppBrowser;
+  static isSafariBrowser = isSafariBrowser;
+  static signInWithGoogle = signInWithGoogle;
+  static getGoogleRedirectResult = getGoogleRedirectResult;
+  static initializeAuth = initializeAuth;
+  static signOutUser = signOutUser;
+  static fetchUserData = fetchUserData;
+  static createNewUser = createNewUser;
+  static updateUserProfile = updateUserProfile;
+  static createQuest = createQuest;
+  static getQuests = getQuests;
+  static getQuest = getQuest;
+  static updateQuest = updateQuest;
+  static deleteQuest = deleteQuest;
+  static createNotification = createNotification;
+}
+
+// 하위 호환성을 위한 export
+export {
   app,
   auth,
   db,
+  isInAppBrowser,
+  isSafariBrowser,
   signInWithGoogle,
-  signOutUser,
   getGoogleRedirectResult,
   initializeAuth,
+  signOutUser,
   fetchUserData,
   createNewUser,
   updateUserProfile,
@@ -358,10 +448,4 @@ const Firebase = {
   updateQuest,
   deleteQuest,
   createNotification,
-  isInAppBrowser,
-  isSafariBrowser,
-  openInExternalBrowser,
-} as const;
-
-// Firebase 객체 export
-export { Firebase }; 
+}; 
