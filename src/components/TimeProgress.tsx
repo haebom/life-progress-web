@@ -117,9 +117,6 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
           <p className="text-lg font-mono text-gray-600">
             남은 시간: {remaining.toFixed(8)}년
           </p>
-          <p className="text-sm text-gray-500 mt-2">
-            {message}
-          </p>
         </div>
       </div>
     </div>

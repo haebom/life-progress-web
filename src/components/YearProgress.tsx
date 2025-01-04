@@ -59,7 +59,9 @@ export const YearProgress: React.FC<YearProgressProps> = ({
       <div className="mb-6">
         <div className="mb-2 flex justify-between text-sm text-gray-600">
           <span>{year || localTime.getFullYear()}년</span>
-          <span>{progress.toFixed(3)}%</span>
+          <span title={`${timeZoneName} 기준`} className="cursor-help">
+            {progress.toFixed(3)}%
+          </span>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
           <div 
@@ -85,11 +87,8 @@ export const YearProgress: React.FC<YearProgressProps> = ({
 
       {/* 동기부여 메시지 */}
       <div className="mt-4 text-center">
-        <p className="text-gray-700 text-lg mb-1">
+        <p className="text-gray-700 text-lg">
           {message}
-        </p>
-        <p className="text-sm text-gray-500">
-          {timeZoneName} 기준
         </p>
       </div>
     </div>
