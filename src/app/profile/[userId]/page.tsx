@@ -1,11 +1,11 @@
 import { ProfileView } from '@/components/ProfileView';
 
-interface PageProps {
+export default function UserProfilePage({
+  params,
+}: {
   params: {
     userId: string;
   };
-}
-
-export default function UserProfilePage({ params }: PageProps) {
+}) {
   return <ProfileView userId={params.userId} />;
 } 
