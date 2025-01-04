@@ -19,22 +19,18 @@ export default function DashboardPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    const loadQuests = async () => {
-      if (!user.uid) {
-        console.error('유저 ID가 없습니다.');
-        setError('사용자 정보를 불러올 수 없습니다.');
-        setIsLoading(false);
+    const loadData = async () => {
+      if (!user) {
+        router.push('/login');
         return;
       }
+
+      if (!user.uid) return;
 
       try {
         const questsData = await getQuests(user.uid);
         setQuests(questsData || []);
+        setError(null);
       } catch (error) {
         console.error('퀘스트 로딩 오류:', error);
         setError('퀘스트를 불러오는 중 오류가 발생했습니다.');
@@ -43,10 +39,10 @@ export default function DashboardPage() {
       }
     };
 
-    loadQuests();
+    loadData();
   }, [user, router]);
 
-  if (!user) {
+  if (!user || !user.uid) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-600">로그인이 필요합니다.</p>
