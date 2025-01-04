@@ -7,7 +7,6 @@ import { getUserProfile } from '@/lib/auth';
 import type { User } from '@/types';
 import Image from 'next/image';
 import { YearProgress } from './YearProgress';
-import { MessageManager } from './MessageManager';
 
 interface ProfileViewProps {
   userId: string;
