@@ -6,6 +6,6 @@ interface PageProps {
   };
 }
 
-export default function ProfilePage({ params }: PageProps) {
+export default function UserProfilePage({ params }: PageProps) {
   return <ProfileView userId={params.userId} />;
 } 

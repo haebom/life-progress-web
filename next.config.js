@@ -5,7 +5,6 @@ const nextConfig = {
     domains: ['lh3.googleusercontent.com']
   },
   experimental: {
-    appDir: true
   }
 }
 
