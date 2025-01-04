@@ -403,6 +403,11 @@ export async function getQuestCheers(questId: string): Promise<QuestCheer[]> {
 }
 
 export async function getQuests(userId: string) {
+  if (!userId) {
+    console.error('유저 ID가 없습니다.');
+    return [];
+  }
+
   try {
     const questsRef = collection(db, 'quests');
     const q = query(questsRef, where('userId', '==', userId));

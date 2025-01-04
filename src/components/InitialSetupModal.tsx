@@ -26,9 +26,37 @@ export function InitialSetupModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const now = Timestamp.now();
     const updatedData = {
       birthDate: Timestamp.fromDate(new Date(formData.birthDate)),
       lifeExpectancy: formData.lifeExpectancy,
+      gameStats: {
+        level: 1,
+        experience: 0,
+        questsCompleted: 0,
+        points: 0,
+        streak: 0,
+        lastActive: now,
+        achievements: [],
+        nextLevelExp: 1000,
+      },
+      blocks: {},
+      isPublic: false,
+      pushNotifications: true,
+      quests: 0,
+      level: 1,
+      points: 0,
+      streak: 0,
+      lastActive: now,
+      achievements: [],
+      settings: {
+        theme: 'light',
+        notifications: true,
+        language: 'ko',
+      },
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
     };
 
     try {
