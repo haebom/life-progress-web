@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { Firebase } from '@/lib/firebase';
 import useStore from '@/store/useStore';
 import type { User } from '@/types';
@@ -17,162 +17,100 @@ export default function LoginPage() {
   const handleUserLogin = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
       console.log('사용자 로그인 처리 시작:', firebaseUser.uid);
-      console.log('현재 URL:', window.location.href);
       setLoading(true);
       
-      // 이전 로그인 상태 초기화
+      // 이전 상태 초기화
       localStorage.removeItem('auth_pending');
       localStorage.removeItem('auth_redirect_url');
       
+      // Firestore에서 사용자 데이터 조회
       const userDoc = await getDoc(doc(Firebase.db, 'users', firebaseUser.uid));
       
       if (userDoc.exists()) {
-        console.log('사용자 문서 찾음');
+        console.log('기존 사용자 데이터 로드');
         const userData = userDoc.data() as User;
+        
+        // 마지막 로그인 시간 업데이트
+        await updateDoc(doc(Firebase.db, 'users', firebaseUser.uid), {
+          lastLoginAt: Timestamp.now()
+        });
+        
         setUser(userData);
         localStorage.setItem('auth_state', 'logged_in');
-        console.log('대시보드로 이동 시도');
         router.push('/dashboard');
       } else {
-        console.log('신규 사용자, 초기 설정으로 이동');
-        const now = Timestamp.now();
-        const defaultUser: Omit<User, 'id'> = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || '',
-          displayName: firebaseUser.displayName || '',
-          photoURL: firebaseUser.photoURL || '',
-          birthDate: now,
-          lifeExpectancy: 80,
-          isPublic: false,
-          pushNotifications: true,
-          gameStats: {
-            level: 1,
-            experience: 0,
-            questsCompleted: 0,
-            points: 0,
-            streak: 0,
-            lastActive: now,
-            achievements: [],
-            nextLevelExp: 100
-          },
-          blocks: {},
-          createdAt: now,
-          updatedAt: now,
-          lastLoginAt: now,
-          quests: 0,
-          level: 1,
-          points: 0,
-          streak: 0,
-          lastActive: now,
-          achievements: [],
-          settings: {
-            theme: 'light',
-            notifications: true,
-            language: 'ko'
-          }
-        };
-        await Firebase.createNewUser(defaultUser);
-        setUser(defaultUser as User);
+        console.log('신규 사용자 초기 설정으로 이동');
         router.push('/initial-setup');
       }
     } catch (error) {
       console.error('사용자 데이터 처리 중 오류:', error);
-      if (error instanceof Error) {
-        console.error('에러 타입:', error.name);
-        console.error('에러 메시지:', error.message);
-      }
-      setError('사용자 정보를 불러오는데 실패했습니다.');
-      // 에러 발생 시 상태 초기화
+      setError('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       localStorage.removeItem('auth_state');
-      localStorage.removeItem('auth_pending');
-      localStorage.removeItem('auth_redirect_url');
     } finally {
       setLoading(false);
     }
   }, [router, setUser]);
 
+  // 리디렉션 결과 처리 개선
+  const handleRedirectResult = useCallback(async () => {
+    try {
+      console.log('리디렉션 결과 확인');
+      const result = await Firebase.getGoogleRedirectResult();
+      
+      if (result?.user) {
+        await handleUserLogin(result.user);
+      }
+    } catch (error) {
+      console.error('리디렉션 처리 중 오류:', error);
+      if (error instanceof Error) {
+        setError(
+          error.message.includes('redirect_uri_mismatch')
+            ? '로그인 설정이 올바르지 않습니다. 관리자에게 문의해주세요.'
+            : '로그인 처리 중 오류가 발생했습니다.'
+        );
+      }
+    }
+  }, [handleUserLogin]);
+
   useEffect(() => {
     console.log('로그인 페이지 마운트');
-    console.log('현재 URL:', window.location.href);
-    console.log('로컬 스토리지 상태:', {
-      auth_state: localStorage.getItem('auth_state'),
-      auth_pending: localStorage.getItem('auth_pending'),
-      redirect_url: localStorage.getItem('auth_redirect_url')
-    });
     
+    // 이미 로그인된 경우 처리
     const authState = localStorage.getItem('auth_state');
     if (authState === 'logged_in') {
-      console.log('이미 로그인된 상태, 대시보드로 이동');
+      console.log('이미 로그인된, 대시보드로 이동');
       router.push('/dashboard');
       return;
     }
 
-    const unsubscribe = Firebase.initializeAuth((user: FirebaseUser | null) => {
-      console.log('Auth 상태 변경:', user ? `로그인됨 (${user.uid})` : '로그아웃됨');
+    // 인증 상태 감지 설정
+    const unsubscribe = Firebase.auth.onAuthStateChanged(async (user) => {
+      console.log('인증 상태 변경:', user ? '로그인됨' : '로그아웃됨');
+      
       if (user) {
-        handleUserLogin(user);
+        await handleUserLogin(user);
       } else {
         localStorage.removeItem('auth_state');
       }
     });
 
-    const checkRedirectResult = async () => {
-      try {
-        console.log('리다이렉트 결과 확인 시작');
-        console.log('현재 URL:', window.location.href);
-        setLoading(true);
-        
-        const result = await Firebase.getGoogleRedirectResult();
-        console.log('리다이렉트 결과:', result ? '성공' : '없음');
-        
-        if (result?.user) {
-          console.log('리다이렉트 결과로 사용자 찾음:', result.user.uid);
-          await handleUserLogin(result.user);
-        }
-      } catch (error) {
-        console.error('리다이렉트 결과 확인 중 오류:', error);
-        if (error instanceof Error) {
-          console.error('에러 타입:', error.name);
-          console.error('에러 메시지:', error.message);
-          const errorMessage = error.message || '';
-          setError(
-            errorMessage.includes('redirect_uri_mismatch')
-              ? '로그인 설정이 올바르지 않습니다. 관리자에게 문의해주세요.'
-              : errorMessage.includes('popup_closed_by_user')
-              ? '로그인이 취소되었습니다.'
-              : errorMessage.includes('auth/invalid-credential')
-              ? '인증 정보가 올바르지 않습니다.'
-              : errorMessage.includes('missing initial state')
-              ? '브라우저 상태가 초기화되었습니다. 다시 시도해주세요.'
-              : '로그인 처리 중 오류가 발생했습니다.'
-          );
-        }
-        // 에러 발생 시 상태 초기화
-        localStorage.removeItem('auth_state');
-        localStorage.removeItem('auth_pending');
-        localStorage.removeItem('auth_redirect_url');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // 리디렉션 결과 확인
+    handleRedirectResult();
 
-    // 페이지 로드 시 항상 리디렉트 결과 확인
-    checkRedirectResult();
-    
     return () => {
       console.log('로그인 페이지 언마운트');
       unsubscribe();
     };
-  }, [handleUserLogin, router]);
+  }, [handleUserLogin, handleRedirectResult, router]);
 
   const handleGoogleLogin = async () => {
-    setError(null);
-    setLoading(true);
-
     try {
+      setError(null);
+      setLoading(true);
+      
       console.log('구글 로그인 시작');
       localStorage.setItem('auth_state', 'attempting');
+      
       await Firebase.signInWithGoogle();
     } catch (error) {
       console.error('구글 로그인 중 오류:', error);
@@ -184,6 +122,7 @@ export default function LoginPage() {
             : '구글 로그인에 실패했습니다.'
         );
       }
+    } finally {
       setLoading(false);
     }
   };
