@@ -1,7 +1,7 @@
 'use client';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import {
   getFirestore,
@@ -73,14 +73,23 @@ export function openInExternalBrowser(url: string): void {
 
 export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
   
-  if (Capacitor.isNativePlatform()) {
-    // 네이티브 환경에서는 redirect 방식 사용
-    const { signInWithRedirect } = await import('firebase/auth');
-    return signInWithRedirect(auth, provider);
-  } else {
-    // 웹 환경에서는 popup 방식 사용
-    return signInWithPopup(auth, provider);
+  try {
+    if (Capacitor.isNativePlatform()) {
+      // 네이티브 환경에서는 redirect 방식 사용
+      const { signInWithRedirect } = await import('firebase/auth');
+      return signInWithRedirect(auth, provider);
+    } else {
+      // 웹 환경에서는 redirect 방식으로 변경
+      const { signInWithRedirect } = await import('firebase/auth');
+      return signInWithRedirect(auth, provider);
+    }
+  } catch (error) {
+    console.error('Google 로그인 오류:', error);
+    throw error;
   }
 };
 
