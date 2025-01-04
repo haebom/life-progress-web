@@ -13,6 +13,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [quests, setQuests] = useState<Quest[]>([]);
   const [error, setError] = useState<string>('');
+  const [notionConnected, setNotionConnected] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -21,6 +22,19 @@ export default function Dashboard() {
       router.push('/login');
       return;
     }
+
+    // Check if Notion is connected
+    const checkNotionConnection = async () => {
+      try {
+        const response = await fetch('/api/auth/notion/check');
+        const { connected } = await response.json();
+        setNotionConnected(connected);
+      } catch (err) {
+        console.error('Notion 연결 상태 확인 중 오류:', err);
+      }
+    };
+
+    checkNotionConnection();
 
     const fetchQuests = async () => {
       try {
@@ -40,6 +54,10 @@ export default function Dashboard() {
     fetchQuests();
   }, [user, loading, router]);
 
+  const handleNotionConnect = () => {
+    window.location.href = '/api/auth/notion';
+  };
+
   if (loading) {
     return <div className="p-4">로딩 중...</div>;
   }
@@ -53,10 +71,30 @@ export default function Dashboard() {
       <h1 className="text-xl font-bold px-4 py-3 bg-white">대시보드</h1>
       
       <div className="space-y-[1px] bg-gray-100">
+        {!notionConnected && (
+          <div className="bg-white p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+              <h3 className="font-medium text-blue-700 dark:text-blue-300">
+                Notion 연동이 필요합니다
+              </h3>
+              <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 mb-3">
+                퀘스트를 관리하기 위해 Notion 워크스페이스와 연동해주세요.
+              </p>
+              <button
+                onClick={handleNotionConnect}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Notion 연동하기
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white">
           <TimeProgress 
             birthDate={user?.birthDate} 
             lifeExpectancy={user?.lifeExpectancy} 
+            userId={user?.id || ''}
           />
         </div>
 
