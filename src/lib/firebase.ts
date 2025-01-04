@@ -24,6 +24,7 @@ import {
   deleteDoc,
   serverTimestamp,
   DocumentData,
+  addDoc,
 } from 'firebase/firestore';
 import type { User as CustomUser, Quest } from '@/types';
 
@@ -240,6 +241,42 @@ export async function deleteQuest(questId: string) {
     await deleteDoc(doc(db, 'quests', questId));
   } catch (error) {
     console.error('퀘스트 삭제 중 오류 발생:', error);
+    throw error;
+  }
+}
+
+// 알림 관련 인터페이스
+interface NotificationData {
+  questId?: string;
+  goalId?: string;
+  friendId?: string;
+  senderName?: string;
+  senderPhotoURL?: string;
+  progress?: number;
+  [key: string]: unknown;
+}
+
+// 알림 생성 함수
+export async function createNotification(
+  userId: string,
+  title: string,
+  message: string,
+  type: string,
+  data?: NotificationData
+) {
+  try {
+    const notificationRef = collection(db, 'notifications');
+    await addDoc(notificationRef, {
+      userId,
+      title,
+      message,
+      type,
+      data,
+      createdAt: Timestamp.now(),
+      read: false,
+    });
+  } catch (error) {
+    console.error('알림 생성 중 오류 발생:', error);
     throw error;
   }
 }
