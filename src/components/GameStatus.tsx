@@ -7,7 +7,7 @@ interface GameStatusProps {
   user: User;
 }
 
-export function GameStatus({ user }: GameStatusProps) {
+export default function GameStatus({ user }: GameStatusProps) {
   const calculateLevel = (exp: number) => {
     let level = 1;
     for (const threshold of LEVEL_THRESHOLDS) {
@@ -22,41 +22,44 @@ export function GameStatus({ user }: GameStatusProps) {
 
   const calculateProgress = (exp: number) => {
     const level = calculateLevel(exp);
-    const currentThreshold = LEVEL_THRESHOLDS[level - 1] || 0;
-    const nextThreshold = LEVEL_THRESHOLDS[level] || LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
-    const expInLevel = exp - currentThreshold;
-    const expNeeded = nextThreshold - currentThreshold;
-    return Math.min((expInLevel / expNeeded) * 100, 100);
+    const currentLevelThreshold = LEVEL_THRESHOLDS[level - 1] || 0;
+    const nextLevelThreshold = LEVEL_THRESHOLDS[level] || currentLevelThreshold * 2;
+    const expInCurrentLevel = exp - currentLevelThreshold;
+    const expNeededForNextLevel = nextLevelThreshold - currentLevelThreshold;
+    return (expInCurrentLevel / expNeededForNextLevel) * 100;
   };
 
-  const level = calculateLevel(user.exp || 0);
-  const progress = calculateProgress(user.exp || 0);
+  const level = calculateLevel(user.gameStats?.experience || 0);
+  const progress = calculateProgress(user.gameStats?.experience || 0);
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-semibold mb-4">게임 상태</h2>
-      <div className="space-y-4">
-        <div>
-          <p className="text-sm text-gray-600">레벨</p>
-          <p className="text-2xl font-bold">{level}</p>
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">레벨 {level}</h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {user.gameStats?.experience || 0} EXP
+        </span>
+      </div>
+      
+      <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div
+          className="absolute left-0 top-0 h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {user.gameStats?.questsCompleted || 0}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">완료한 퀘스트</p>
         </div>
-        <div>
-          <p className="text-sm text-gray-600">경험치</p>
-          <div className="relative pt-1">
-            <div className="flex mb-2 items-center justify-between">
-              <div>
-                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                  {Math.round(progress)}%
-                </span>
-              </div>
-            </div>
-            <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-              <div
-                style={{ width: `${progress}%` }}
-                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
-              ></div>
-            </div>
-          </div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {user.gameStats?.streak || 0}일
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">연속 달성</p>
         </div>
       </div>
     </div>
