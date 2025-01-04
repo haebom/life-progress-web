@@ -4,14 +4,7 @@ const nextConfig = {
   images: {
     domains: ['lh3.googleusercontent.com']
   },
-  optimizeFonts: true,
   swcMinify: true,
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
-  experimental: {
-    optimizeCss: true,
-  },
   async headers() {
     return [
       {
