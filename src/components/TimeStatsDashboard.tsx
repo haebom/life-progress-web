@@ -1,17 +1,10 @@
 'use client';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import type { BlockMap } from '@/types';
 
 interface TimeStatsDashboardProps {
-  blocks: {
-    [key: string]: {
-      title: string;
-      description?: string;
-      progress: number;
-      createdAt: Date;
-      updatedAt: Date;
-    };
-  };
+  blocks: BlockMap;
 }
 
 interface ChartData {
@@ -40,7 +33,7 @@ export function TimeStatsDashboard({ blocks }: TimeStatsDashboardProps) {
   const lastWeekCompleted = Object.values(blocks).filter(block => {
     const completedDate = block.progress === 100 ? block.updatedAt : null;
     if (!completedDate) return false;
-    const daysDiff = Math.floor((new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.floor((new Date().getTime() - completedDate.toDate().getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 7;
   }).length;
 

@@ -22,6 +22,7 @@ export default function QuestsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<Quest['status'] | 'all'>('all');
   const [sortBy, setSortBy] = useState<'createdAt' | 'dueDate'>('createdAt');
+  const [notionConnected, setNotionConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -67,6 +68,11 @@ export default function QuestsPage() {
           .filter(quest => quest.userId !== user.uid);
         
         setSharedQuests(sharedQuestsData);
+
+        // Notion 연동 상태 확인
+        const response = await fetch('/api/auth/notion/check');
+        const data = await response.json();
+        setNotionConnected(data.connected);
       } catch (error) {
         console.error('퀘스트 로딩 실패:', error);
         
@@ -165,6 +171,19 @@ export default function QuestsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {notionConnected === false && (
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <h2 className="text-lg font-semibold text-blue-700 mb-2">Notion 연동이 필요합니다</h2>
+          <p className="text-blue-600 mb-4">퀘스트를 관리하기 위해 Notion 워크스페이스와 연동해주세요.</p>
+          <button
+            onClick={() => router.push('/api/auth/notion')}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Notion 연동하기
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">목표 관리</h1>
         <Button onClick={() => router.push('/quests/new')}>

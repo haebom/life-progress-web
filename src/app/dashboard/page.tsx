@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import useStore from '@/store/useStore';
 import QuestList from '@/components/QuestList';
 import QuestCreateModal from '@/components/QuestCreateModal';
+import { TimeStatsDashboard } from '@/components/TimeStatsDashboard';
+import LifeProgress from '@/components/LifeProgress';
 import { getQuests, createQuest } from '@/lib/firebase';
 import type { Quest } from '@/types';
 
@@ -15,7 +17,6 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
-  const [notionConnected, setNotionConnected] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
     if (!user) {
@@ -35,19 +36,7 @@ export default function DashboardPage() {
       }
     };
 
-    const checkNotionConnection = async () => {
-      try {
-        const response = await fetch('/api/auth/notion/check');
-        const data = await response.json();
-        setNotionConnected(data.connected);
-      } catch (error) {
-        console.error('Notion 연동 상태 확인 오류:', error);
-        setNotionConnected(false);
-      }
-    };
-
     loadQuests();
-    checkNotionConnection();
   }, [user, router]);
 
   if (!user) {
@@ -68,18 +57,15 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {notionConnected === false && (
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <h2 className="text-lg font-semibold text-blue-700 mb-2">Notion 연동이 필요합니다</h2>
-          <p className="text-blue-600 mb-4">퀘스트를 관리하기 위해 Notion 워크스페이스와 연동해주세요.</p>
-          <button
-            onClick={() => router.push('/api/auth/notion')}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Notion 연동하기
-          </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">시간 통계</h2>
+          <TimeStatsDashboard blocks={user.blocks || {}} />
         </div>
-      )}
+        <div className="bg-white rounded-lg shadow p-6">
+          <LifeProgress user={user} />
+        </div>
+      </div>
 
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">대시보드</h1>
