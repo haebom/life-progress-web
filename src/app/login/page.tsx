@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { Firebase } from '@/lib/firebase';
 import useStore from '@/store/useStore';
 import type { User } from '@/types';
@@ -28,6 +28,45 @@ export default function LoginPage() {
         router.push('/dashboard');
       } else {
         console.log('신규 사용자, 초기 설정으로 이동');
+        const now = Timestamp.now();
+        const defaultUser: Omit<User, 'id'> = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || '',
+          displayName: firebaseUser.displayName || '',
+          photoURL: firebaseUser.photoURL || '',
+          birthDate: now,
+          lifeExpectancy: 80,
+          isPublic: false,
+          pushNotifications: true,
+          gameStats: {
+            level: 1,
+            experience: 0,
+            questsCompleted: 0,
+            points: 0,
+            streak: 0,
+            lastActive: now,
+            achievements: [],
+            nextLevelExp: 100
+          },
+          blocks: {},
+          createdAt: now,
+          updatedAt: now,
+          lastLoginAt: now,
+          quests: 0,
+          level: 1,
+          points: 0,
+          streak: 0,
+          lastActive: now,
+          achievements: [],
+          settings: {
+            theme: 'light',
+            notifications: true,
+            language: 'ko'
+          }
+        };
+        await Firebase.createNewUser(defaultUser);
+        setUser(defaultUser as User);
         router.push('/initial-setup');
       }
     } catch (error) {
@@ -65,7 +104,7 @@ export default function LoginPage() {
         const result = await Firebase.getGoogleRedirectResult();
         
         if (result?.user) {
-          console.log('리다이렉트 결과로 사용자 찾음');
+          console.log('리다이렉트 결과로 사용자 찾음:', result.user.uid);
           sessionStorage.setItem('auth_redirect_complete', 'true');
           await handleUserLogin(result.user);
         }
@@ -137,10 +176,9 @@ export default function LoginPage() {
 
         <div className="mt-6">
           <button
-            type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -161,15 +199,6 @@ export default function LoginPage() {
               />
             </svg>
             {loading ? '로그인 중...' : 'Google로 로그인'}
-          </button>
-        </div>
-
-        <div className="text-center">
-          <button
-            onClick={() => router.push('/signup')}
-            className="text-sm text-blue-600 hover:text-blue-500"
-          >
-            계정이 없으신가요? 회원가입
           </button>
         </div>
       </div>
