@@ -25,9 +25,16 @@ export default function DashboardPage() {
     }
 
     const loadQuests = async () => {
+      if (!user.uid) {
+        console.error('유저 ID가 없습니다.');
+        setError('사용자 정보를 불러올 수 없습니다.');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const questsData = await getQuests(user.uid);
-        setQuests(questsData);
+        setQuests(questsData || []);
       } catch (error) {
         console.error('퀘스트 로딩 오류:', error);
         setError('퀘스트를 불러오는 중 오류가 발생했습니다.');
@@ -49,8 +56,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">데이터를 불러오는 중...</p>
+      <div className="w-full max-w-md mx-auto px-4 py-6 min-h-screen">
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
       </div>
     );
   }
@@ -89,10 +98,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-4">
-          <h2 className="text-lg font-semibold mb-4">진행 중인 퀘스트</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">진행 중인 퀘스트</h2>
+          </div>
           {error ? (
             <div className="text-center py-4">
-              <p className="text-red-600">{error}</p>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+              >
+                새 퀘스트 생성하기
+              </button>
             </div>
           ) : quests.length === 0 ? (
             <div className="text-center py-8">
