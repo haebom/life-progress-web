@@ -2,7 +2,6 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { Capacitor } from '@capacitor/core';
 import {
   getFirestore,
   doc,
@@ -78,15 +77,17 @@ export const signInWithGoogle = async () => {
   });
   
   try {
-    if (Capacitor.isNativePlatform()) {
-      // 네이티브 환경에서는 redirect 방식 사용
-      const { signInWithRedirect } = await import('firebase/auth');
-      return signInWithRedirect(auth, provider);
-    } else {
-      // 웹 환경에서는 redirect 방식으로 변경
-      const { signInWithRedirect } = await import('firebase/auth');
-      return signInWithRedirect(auth, provider);
+    const { signInWithRedirect, getRedirectResult } = await import('firebase/auth');
+    
+    // 리다이렉트 결과 확인
+    const result = await getRedirectResult(auth);
+    if (result) {
+      // 이미 리다이렉트 결과가 있으면 반환
+      return result;
     }
+
+    // 리다이렉트 시작
+    return signInWithRedirect(auth, provider);
   } catch (error) {
     console.error('Google 로그인 오류:', error);
     throw error;
@@ -430,5 +431,17 @@ export async function getQuests(userId: string) {
     throw error;
   }
 }
+
+// 리다이렉트 결과 확인 함수 추가
+export const getGoogleRedirectResult = async () => {
+  try {
+    const { getRedirectResult } = await import('firebase/auth');
+    const result = await getRedirectResult(auth);
+    return result;
+  } catch (error) {
+    console.error('리다이렉트 결과 확인 오류:', error);
+    throw error;
+  }
+};
 
 export { app, auth, db }; 
