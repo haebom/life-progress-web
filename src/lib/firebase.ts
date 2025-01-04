@@ -121,31 +121,37 @@ const isStorageAvailable = (type: 'sessionStorage' | 'localStorage'): boolean =>
   }
 };
 
-// 도메인 검증
+// 승인된 도메인 목록
+const AUTHORIZED_DOMAINS = [
+  'localhost',
+  'localhost:3000',
+  'life-progress.vercel.app',
+  'your-custom-domain.com'  // 실제 커스텀 도메인으로 교체
+];
+
+// 도메인 검증 함수 업데이트
 const validateAuthDomain = (): boolean => {
   if (!isBrowser) return true;
   
-  const allowedDomains = [
-    'localhost:3000',
-    'life-progress.vercel.app'  // 실제 배포 도메인
-  ];
-  
-  const currentDomain = window.location.host;
-  const isValid = allowedDomains.includes(currentDomain);
+  const currentDomain = window.location.hostname;
+  const isValid = AUTHORIZED_DOMAINS.some(domain => 
+    currentDomain === domain || currentDomain.endsWith(`.${domain}`)
+  );
   
   if (!isValid) {
-    console.warn(`승인되지 않은 도메인에서의 접근: ${currentDomain}`);
+    console.error(`승인되지 않은 도메인에서의 접근: ${currentDomain}`);
+    console.error('승인된 도메인 목록:', AUTHORIZED_DOMAINS);
   }
   
   return isValid;
 };
 
-// Google 로그인 함수
+// Google 로그인 함수 업데이트
 const signInWithGoogle = async () => {
   console.log('Google 로그인 시작');
   
   if (!validateAuthDomain()) {
-    throw new Error('승인되지 않은 도메인에서의 접근입니다.');
+    throw new Error(`승인되지 않은 도메인에서의 접근입니다. (현재 도메인: ${window.location.hostname})`);
   }
 
   if (!isStorageAvailable('sessionStorage')) {
@@ -160,16 +166,26 @@ const signInWithGoogle = async () => {
       return;
     }
 
+    // Safari 브라우저에서는 팝업 사용
     if (isSafariBrowser()) {
       const result = await signInWithPopup(auth, provider);
       console.log('Google 로그인 팝업 완료:', result.user.uid);
       return result;
     }
 
+    // 다른 브라우저에서는 리다이렉트 사용
     await signInWithRedirect(auth, provider);
     console.log('Google 로그인 리다이렉트 완료');
   } catch (error) {
     console.error('Google 로그인 중 오류:', error);
+    if (error instanceof Error) {
+      // Firebase Auth 에러 상세 로깅
+      console.error('에러 타입:', error.name);
+      console.error('에러 메시지:', error.message);
+      if ('code' in error) {
+        console.error('에러 코드:', (error as { code: string }).code);
+      }
+    }
     throw error;
   }
 };
@@ -258,18 +274,33 @@ const initializeAuth = (callback: (user: FirebaseUser | null) => void) => {
 // 로그아웃 함수
 const signOutUser = () => signOut(auth);
 
-// 사용자 데이터 관련 함수들
-async function fetchUserData(uid: string): Promise<User | null> {
+// Firestore 에러 핸들링을 위한 래퍼 함수
+const handleFirestoreError = async <T>(
+  operation: () => Promise<T>,
+  errorMessage: string
+): Promise<T> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-      return userDoc.data() as User;
-    }
-    return null;
+    return await operation();
   } catch (error) {
-    console.error('사용자 데이터 불러오기 실패:', error);
+    console.error(`${errorMessage}:`, error);
+    if (error instanceof Error) {
+      if ('code' in error && (error as { code: string }).code === 'permission-denied') {
+        throw new Error('데이터 접근 권한이 없습니다. 로그인이 필요합니다.');
+      }
+    }
     throw error;
   }
+};
+
+// 사용자 데이터 함수 업데이트
+async function fetchUserData(uid: string): Promise<User | null> {
+  return handleFirestoreError(
+    async () => {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      return userDoc.exists() ? userDoc.data() as User : null;
+    },
+    '사용자 데이터 불러오기 실패'
+  );
 }
 
 async function createNewUser(user: Omit<User, 'id'>) {
