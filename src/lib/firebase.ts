@@ -43,11 +43,17 @@ const db = getFirestore(app);
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({
+  const customParams: { [key: string]: string } = {
     prompt: 'select_account',
-    // iOS Safari에서 더 나은 호환성을 위한 설정
-    iosClientId: process.env.NEXT_PUBLIC_FIREBASE_IOS_CLIENT_ID,
-  });
+  };
+  
+  // iOS Safari에서 더 나은 호환성을 위한 설정
+  const iosClientId = process.env.NEXT_PUBLIC_FIREBASE_IOS_CLIENT_ID;
+  if (iosClientId) {
+    customParams.iosClientId = iosClientId;
+  }
+  
+  provider.setCustomParameters(customParams);
   
   try {
     // 팝업 방식으로 로그인 시도
@@ -57,11 +63,11 @@ export async function signInWithGoogle() {
     document.cookie = `auth-session=${result.user.uid};path=/;max-age=604800;SameSite=Strict;Secure`;
     
     return result.user;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Google 로그인 실패:', error);
     
     // iOS Safari에서 팝업이 차단된 경우 처리
-    if (error.code === 'auth/popup-blocked') {
+    if (error instanceof Error && 'code' in error && error.code === 'auth/popup-blocked') {
       alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
     }
     

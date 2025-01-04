@@ -15,7 +15,6 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
 }) => {
   const [currentAge, setCurrentAge] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const [message, setMessage] = useState('');
   const [stats, setStats] = useState({
     days: 0,
     months: 0,
@@ -24,12 +23,6 @@ const TimeProgress: React.FC<TimeProgressProps> = ({
     hours: 0,
     sunrises: 0
   });
-
-  // 랜덤 메시지 선택
-  useEffect(() => {
-    const randomIndex = Math.floor(Math.random() * INSPIRATION_MESSAGES.length);
-    setMessage(INSPIRATION_MESSAGES[randomIndex]);
-  }, []); // 컴포넌트 마운트 시 한 번만 실행
 
   useEffect(() => {
     if (!birthDate) return;
