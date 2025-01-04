@@ -1,11 +1,10 @@
 import { ProfileView } from '@/components/ProfileView';
 
-export default function UserProfilePage({
-  params,
-}: {
-  params: {
-    userId: string;
-  };
-}) {
+type Props = {
+  params: { userId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export default async function UserProfilePage({ params }: Props) {
   return <ProfileView userId={params.userId} />;
 } 
