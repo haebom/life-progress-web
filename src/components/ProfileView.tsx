@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { FaTrophy, FaStar, FaMedal } from 'react-icons/fa';
-import { User } from '@/types';
+import { Firebase } from '@/lib/firebase';
+import type { User } from '@/types';
 import StatCard from './StatCard';
-import { fetchUserData } from '@/lib/firebase';
 
 interface ProfileViewProps {
   userId: string;
@@ -13,21 +13,23 @@ interface ProfileViewProps {
 
 export default function ProfileView({ userId }: ProfileViewProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        const userData = await fetchUserData(userId);
-        setUser(userData);
-      } catch (err) {
-        console.error('프로필 로딩 실패:', err);
-        setError('프로필 정보를 불러오는데 실패했습니다.');
+        const userData = await Firebase.fetchUserData(userId);
+        if (userData) {
+          setUser(userData);
+        } else {
+          setError('사용자를 찾을 수 없습니다.');
+        }
+      } catch (error) {
+        console.error('사용자 데이터 로딩 오류:', error);
+        setError('사용자 정보를 불러오는 중 오류가 발생했습니다.');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
@@ -53,7 +55,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
       {/* 프로필 헤더 */}
       <div className="flex flex-col sm:flex-row items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
         <div className="relative w-24 h-24">
-          {isLoading ? (
+          {loading ? (
             <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
           ) : user?.photoURL ? (
             <Image
@@ -74,14 +76,14 @@ export default function ProfileView({ userId }: ProfileViewProps) {
         
         <div className="text-center sm:text-left">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {isLoading ? (
+            {loading ? (
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
             ) : (
               user?.displayName || user?.name || '이름 없음'
             )}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {isLoading ? (
+            {loading ? (
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mt-2 animate-pulse" />
             ) : (
               user?.email || '이메일 없음'
@@ -97,7 +99,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
           value={user?.gameStats.questsCompleted || 0}
           icon={FaTrophy}
           description="완료한 퀘스트 수"
-          isLoading={isLoading}
+          isLoading={loading}
           formatOptions={{ useAbbreviation: true }}
         />
         <StatCard
@@ -105,14 +107,14 @@ export default function ProfileView({ userId }: ProfileViewProps) {
           value={user?.gameStats.level || 1}
           icon={FaStar}
           description="현재 달성 레벨"
-          isLoading={isLoading}
+          isLoading={loading}
         />
         <StatCard
           title="포인트"
           value={user?.gameStats.points || 0}
           icon={FaMedal}
           description="획득한 총 포인트"
-          isLoading={isLoading}
+          isLoading={loading}
           formatOptions={{ useAbbreviation: true }}
         />
       </div>
@@ -126,7 +128,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
           <div className="flex justify-between items-center">
             <span className="text-gray-500 dark:text-gray-400">가입일</span>
             <span className="text-gray-900 dark:text-white">
-              {isLoading ? (
+              {loading ? (
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
               ) : (
                 user?.createdAt?.toDate().toLocaleDateString() || '알 수 없음'
@@ -136,7 +138,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
           <div className="flex justify-between items-center">
             <span className="text-gray-500 dark:text-gray-400">최근 활동</span>
             <span className="text-gray-900 dark:text-white">
-              {isLoading ? (
+              {loading ? (
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
               ) : (
                 user?.lastActive?.toDate().toLocaleDateString() || '알 수 없음'

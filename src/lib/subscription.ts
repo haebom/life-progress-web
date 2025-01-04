@@ -1,8 +1,7 @@
 'use client';
 
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { createNotification } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 import type { User } from '@/types';
 
 export async function subscribeToGoal(
@@ -11,7 +10,7 @@ export async function subscribeToGoal(
   userData: User,
 ): Promise<void> {
   try {
-    const goalRef = doc(db, 'goals', goalId);
+    const goalRef = doc(Firebase.db, 'goals', goalId);
     const goalSnap = await getDoc(goalRef);
 
     if (!goalSnap.exists()) {
@@ -21,7 +20,7 @@ export async function subscribeToGoal(
     const goalData = goalSnap.data();
 
     // 목표 작성자에게 알림 전송
-    await createNotification(
+    await Firebase.createNotification(
       goalData.userId,
       '새로운 구독자',
       `${userData.name || '알 수 없는 사용자'}님이 회원님의 목표를 구독하기 시작했습니다.`,
@@ -48,7 +47,7 @@ export async function unsubscribeFromGoal(
   userId: string,
 ): Promise<void> {
   try {
-    const goalRef = doc(db, 'goals', goalId);
+    const goalRef = doc(Firebase.db, 'goals', goalId);
     await updateDoc(goalRef, {
       subscribers: arrayRemove(userId),
     });
@@ -63,7 +62,7 @@ export async function checkSubscriptionStatus(
   userId: string,
 ): Promise<boolean> {
   try {
-    const goalRef = doc(db, 'goals', goalId);
+    const goalRef = doc(Firebase.db, 'goals', goalId);
     const goalSnap = await getDoc(goalRef);
 
     if (!goalSnap.exists()) {

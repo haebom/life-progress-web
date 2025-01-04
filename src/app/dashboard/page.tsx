@@ -7,7 +7,7 @@ import QuestList from '@/components/QuestList';
 import QuestCreateModal from '@/components/QuestCreateModal';
 import { TimeStatsDashboard } from '@/components/TimeStatsDashboard';
 import TimeProgress from '@/components/TimeProgress';
-import { getQuests, createQuest } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 import type { Quest } from '@/types';
 
 export default function DashboardPage() {
@@ -29,7 +29,7 @@ export default function DashboardPage() {
           return;
         }
 
-        const questsData = await getQuests(user.uid);
+        const questsData = await Firebase.getQuests(user.uid);
         setQuests(questsData || []);
         setError(null);
       } catch (error) {
@@ -71,6 +71,21 @@ export default function DashboardPage() {
   }
 
   const activeQuests = quests.filter(quest => quest.status !== 'completed').slice(0, 3);
+
+  const handleCreateQuest = async (questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      await Firebase.createQuest({
+        ...questData,
+        userId: user.uid,
+      });
+      setIsCreateModalOpen(false);
+      const updatedQuests = await Firebase.getQuests(user.uid);
+      setQuests(updatedQuests);
+    } catch (error) {
+      console.error('퀘스트 생성 오류:', error);
+      setError('퀘스트 생성에 실패했습니다.');
+    }
+  };
 
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6 sm:max-w-xl md:max-w-4xl min-h-[calc(100vh-4rem)]">
@@ -140,20 +155,7 @@ export default function DashboardPage() {
         <QuestCreateModal
           userId={user.uid}
           onClose={() => setIsCreateModalOpen(false)}
-          onSave={async (questData) => {
-            try {
-              await createQuest({
-                ...questData,
-                userId: user.uid,
-              });
-              setIsCreateModalOpen(false);
-              const updatedQuests = await getQuests(user.uid);
-              setQuests(updatedQuests);
-            } catch (error) {
-              console.error('퀘스트 생성 오류:', error);
-              setError('퀘스트 생성에 실패했습니다.');
-            }
-          }}
+          onSave={handleCreateQuest}
         />
       )}
     </div>

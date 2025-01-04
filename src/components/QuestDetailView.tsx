@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import useStore from '@/store/useStore';
-import { getQuest, updateQuest } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 import type { Quest, QuestStatus } from '@/types';
 
 interface QuestDetailViewProps {
@@ -26,7 +26,7 @@ const QuestDetailView: React.FC<QuestDetailViewProps> = ({ questId }) => {
 
     const loadQuest = async () => {
       try {
-        const questData = await getQuest(questId);
+        const questData = await Firebase.getQuest(questId);
         if (questData) {
           setQuest(questData);
           setProgress(questData.progress || 0);
@@ -55,7 +55,7 @@ const QuestDetailView: React.FC<QuestDetailViewProps> = ({ questId }) => {
         status: newStatus,
       };
 
-      await updateQuest(questId, updatedQuest);
+      await Firebase.updateQuest(questId, updatedQuest);
       setQuest(updatedQuest);
     } catch (error) {
       console.error('진행률 업데이트 오류:', error);
@@ -163,7 +163,7 @@ const QuestDetailView: React.FC<QuestDetailViewProps> = ({ questId }) => {
                     ...quest,
                     status: 'failed',
                   };
-                  await updateQuest(questId, updatedQuest);
+                  await Firebase.updateQuest(questId, updatedQuest);
                   setQuest(updatedQuest);
                 } catch (error) {
                   console.error('퀘스트 상태 업데이트 오류:', error);

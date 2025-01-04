@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db, signInWithGoogle, getGoogleRedirectResult, initializeAuth } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 import useStore from '@/store/useStore';
 import type { User } from '@/types';
 
@@ -18,7 +18,7 @@ export default function LoginPage() {
     try {
       console.log('사용자 로그인 처리 시작:', firebaseUser.uid);
       setLoading(true);
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const userDoc = await getDoc(doc(Firebase.db, 'users', firebaseUser.uid));
       
       if (userDoc.exists()) {
         console.log('사용자 문서 찾음');
@@ -41,7 +41,7 @@ export default function LoginPage() {
     console.log('로그인 페이지 마운트');
     
     // Auth 상태 변경 감지
-    const unsubscribe = initializeAuth((user) => {
+    const unsubscribe = Firebase.initializeAuth((user: FirebaseUser | null) => {
       if (user) {
         console.log('Auth 상태: 로그인됨');
         handleUserLogin(user);
@@ -65,7 +65,7 @@ export default function LoginPage() {
         }
 
         setLoading(true);
-        const result = await getGoogleRedirectResult();
+        const result = await Firebase.getGoogleRedirectResult();
         if (result?.user) {
           console.log('리다이렉트 결과로 사용자 찾음');
           await handleUserLogin(result.user);
@@ -103,7 +103,7 @@ export default function LoginPage() {
 
     try {
       console.log('구글 로그인 시작');
-      await signInWithGoogle();
+      await Firebase.signInWithGoogle();
       // 리다이렉트가 발생하므로 여기 이후의 코드는 실행되지 않습니다.
     } catch (error) {
       console.error('구글 로그인 중 오류:', error);

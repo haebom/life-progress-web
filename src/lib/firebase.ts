@@ -303,7 +303,7 @@ async function deleteQuest(questId: string) {
 }
 
 // 알림 관련 인터페이스
-interface NotificationData {
+export interface NotificationData {
   questId?: string;
   goalId?: string;
   friendId?: string;
@@ -340,7 +340,8 @@ async function createNotification(
   }
 }
 
-export {
+// Firebase 객체 정의
+const Firebase = {
   app,
   auth,
   db,
@@ -359,4 +360,8 @@ export {
   createNotification,
   isInAppBrowser,
   isSafariBrowser,
-}; 
+  openInExternalBrowser,
+} as const;
+
+// Firebase 객체 export
+export { Firebase }; 

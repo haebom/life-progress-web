@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
-import { db } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 import { Quest } from '@/types';
 
 export default function QuestsPage() {
@@ -39,7 +39,7 @@ export default function QuestsPage() {
 
         // 내 퀘스트 가져오기
         const myQuestsQuery = query(
-          collection(db, 'quests'),
+          collection(Firebase.db, 'quests'),
           where('userId', '==', user.uid),
           orderBy('createdAt', 'desc')
         );
@@ -54,7 +54,7 @@ export default function QuestsPage() {
 
         // 공유된 퀘스트 가져오기 (수정된 쿼리)
         const sharedQuestsQuery = query(
-          collection(db, 'quests'),
+          collection(Firebase.db, 'quests'),
           where('isShared', '==', true),
           orderBy('createdAt', 'desc')
         );

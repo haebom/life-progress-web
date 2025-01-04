@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { signInWithGoogle, isInAppBrowser, isSafariBrowser } from '@/lib/firebase';
+import { Firebase } from '@/lib/firebase';
 
 export default function LoginButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,13 +14,13 @@ export default function LoginButton() {
     setError(null);
 
     try {
-      if (isInAppBrowser()) {
+      if (Firebase.isInAppBrowser()) {
         setShowInAppBrowserModal(true);
         setIsLoading(false);
         return;
       }
 
-      await signInWithGoogle();
+      await Firebase.signInWithGoogle();
     } catch (err) {
       console.error('로그인 실패:', err);
       setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -78,7 +78,7 @@ export default function LoginButton() {
         </p>
       )}
       
-      {isSafariBrowser() && (
+      {Firebase.isSafariBrowser() && (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
           Safari에서는 팝업이 차단될 수 있습니다.
           차단된 경우 &quot;팝업 허용&quot;을 선택해주세요.
