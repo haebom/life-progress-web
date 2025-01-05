@@ -1,23 +1,23 @@
 import { Inter } from 'next/font/google';
-import { metadata } from './metadata';
+import { Metadata } from 'next';
 import './globals.css';
 import ClientLayout from '@/components/ClientLayout';
+import { metadata as siteMetadata } from './metadata';
+
+export const metadata: Metadata = siteMetadata;
 
 const inter = Inter({
-  subsets: ['latin']
+  subsets: ['latin'],
+  display: 'swap',
 });
 
-interface RootLayoutProps {
+export default function RootLayout({
+  children,
+}: {
   children: React.ReactNode;
-}
-
-export default function RootLayout({ children }: RootLayoutProps) {
+}) {
   return (
     <html lang="ko" className={inter.className}>
-      <head>
-        <title>{metadata.title as string}</title>
-        <meta name="description" content={metadata.description as string} />
-      </head>
       <body>
         <ClientLayout>{children}</ClientLayout>
       </body>
