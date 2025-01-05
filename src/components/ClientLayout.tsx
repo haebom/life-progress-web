@@ -18,9 +18,17 @@ export default function ClientLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, setUser } = useStore();
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<{
+    isInitialized: boolean;
+    isAuthChecked: boolean;
+    isLoading: boolean;
+    lastRedirectPath: string | null;
+  }>({
+    isInitialized: false,
+    isAuthChecked: false,
+    isLoading: true,
+    lastRedirectPath: null,
+  });
   const redirectInProgress = useRef(false);
 
   // 현재 경로가 공개 경로인지 확인
@@ -35,21 +43,23 @@ export default function ClientLayout({
       console.log('[Auth] Firestore 사용자 데이터:', {
         exists: !!userData,
         email: userData?.email,
-        uid: firebaseUser.uid
+        uid: firebaseUser.uid,
+        pathname
       });
       return userData;
     } catch (error) {
       console.error('[Auth] Firestore 데이터 요청 오류:', error);
       return null;
     }
-  }, []);
+  }, [pathname]);
 
   // 인증 상태 변경 처리
   const handleAuthStateChange = useCallback(async (firebaseUser: FirebaseUser | null) => {
     console.log('[Auth] 상태 변경:', {
       isAuthenticated: !!firebaseUser,
       email: firebaseUser?.email,
-      pathname
+      pathname,
+      authState
     });
 
     try {
@@ -63,17 +73,25 @@ export default function ClientLayout({
       console.error('[Auth] 상태 처리 오류:', error);
       setUser(null);
     } finally {
-      if (!isAuthChecked) {
-        setIsAuthChecked(true);
-      }
-      setIsLoading(false);
+      setAuthState(prev => ({
+        ...prev,
+        isAuthChecked: true,
+        isLoading: false
+      }));
     }
-  }, [fetchUserDataAndUpdate, setUser, pathname, isAuthChecked]);
+  }, [fetchUserDataAndUpdate, setUser, pathname, authState]);
 
   // 라우팅 처리
   const handleRouting = useCallback(async () => {
+    const { isAuthChecked, isLoading, lastRedirectPath } = authState;
+
     // 초기화 전이거나 리다이렉션이 진행 중이면 처리하지 않음
     if (!isAuthChecked || isLoading || redirectInProgress.current) {
+      return;
+    }
+
+    // 이전 리다이렉션 경로와 현재 경로가 같으면 처리하지 않음
+    if (lastRedirectPath === pathname) {
       return;
     }
 
@@ -81,40 +99,40 @@ export default function ClientLayout({
       isAuthenticated: !!user,
       email: user?.email,
       pathname,
-      isAuthChecked,
-      isInitialized,
+      authState,
       redirectInProgress: redirectInProgress.current
     });
 
-    if (!isInitialized) {
-      setIsInitialized(true);
-      return;
-    }
-
     try {
       redirectInProgress.current = true;
-
       const currentIsPublic = isPublicRoute(pathname);
 
-      if (user) {
-        // 인증된 사용자가 공개 경로에 접근하면 대시보드로 이동
-        if (currentIsPublic) {
-          console.log('[Routing] 인증된 사용자를 대시보드로 이동');
-          await router.replace('/dashboard');
-        }
-      } else {
-        // 미인증 사용자가 비공개 경로에 접근하면 로그인으로 이동
-        if (!currentIsPublic) {
-          console.log('[Routing] 미인증 사용자를 로그인으로 이동');
-          await router.replace('/login');
-        }
+      // 인증된 사용자가 공개 경로에 접근
+      if (user && currentIsPublic) {
+        console.log('[Routing] 인증된 사용자를 대시보드로 이동');
+        setAuthState(prev => ({ ...prev, lastRedirectPath: '/dashboard' }));
+        await router.replace('/dashboard');
+        return;
+      }
+
+      // 미인증 사용자가 비공개 경로에 접근
+      if (!user && !currentIsPublic) {
+        console.log('[Routing] 미인증 사용자를 로그인으로 이동');
+        setAuthState(prev => ({ ...prev, lastRedirectPath: '/login' }));
+        await router.replace('/login');
+        return;
+      }
+
+      // 정상적인 접근인 경우 초기화 상태 업데이트
+      if (!authState.isInitialized) {
+        setAuthState(prev => ({ ...prev, isInitialized: true }));
       }
     } catch (error) {
       console.error('[Routing] 처리 오류:', error);
     } finally {
       redirectInProgress.current = false;
     }
-  }, [user, pathname, isAuthChecked, isInitialized, isLoading, router, isPublicRoute]);
+  }, [user, pathname, authState, router, isPublicRoute]);
 
   // 푸시 알림 초기화
   useEffect(() => {
@@ -141,7 +159,7 @@ export default function ClientLayout({
   }, [handleRouting]);
 
   // 로딩 상태 표시
-  if (isLoading || !isAuthChecked || !isInitialized) {
+  if (authState.isLoading || !authState.isAuthChecked || !authState.isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
