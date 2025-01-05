@@ -80,31 +80,50 @@ function openInExternalBrowser(url: string): void {
 
 // Google 로그인 프로바이더 설정
 const provider = new GoogleAuthProvider();
+provider.addScope('profile');
+provider.addScope('email');
 provider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  login_hint: 'user@example.com'
 });
+
+// 승인된 도메인 목록
+const AUTHORIZED_DOMAINS = [
+  'localhost',
+  'localhost:3000',
+  'blocks-1b622.firebaseapp.com',
+  'blocks-1b622.web.app',
+  'life-progress-web.vercel.app'
+];
+
+// 도메인 검증
+const validateDomain = () => {
+  if (typeof window === 'undefined') return true;
+  
+  const currentDomain = window.location.hostname;
+  return AUTHORIZED_DOMAINS.some(domain => 
+    currentDomain === domain || 
+    currentDomain.endsWith(`.${domain}`)
+  );
+};
 
 // Google 로그인 함수
 const signInWithGoogle = async () => {
   try {
-    console.log('Google 로그인 시작');
-    
-    // 인앱 브라우저 체크
+    if (!validateDomain()) {
+      throw new Error('승인되지 않은 도메인입니다.');
+    }
+
     if (isInAppBrowser()) {
-      console.log('인앱 브라우저 감지됨');
       const currentUrl = window.location.href;
       openInExternalBrowser(currentUrl);
       return;
     }
 
-    // Safari 브라우저에서는 팝업 사용
     if (isSafariBrowser()) {
-      console.log('Safari 브라우저 감지, 팝업 사용');
-      return signInWithPopup(auth, provider);
+      return await signInWithPopup(auth, provider);
     }
 
-    // 다른 브라우저에서는 리디렉트 사용
-    console.log('리디렉트 방식으로 로그인 시도');
     await signInWithRedirect(auth, provider);
   } catch (error) {
     console.error('Google 로그인 중 오류:', error);
@@ -115,10 +134,49 @@ const signInWithGoogle = async () => {
 // 리디렉트 결과 확인
 const getGoogleRedirectResult = async () => {
   try {
-    console.log('리디렉트 결과 확인');
     const result = await getRedirectResult(auth);
-    if (result) {
-      console.log('로그인 성공:', result.user.uid);
+    if (result?.user) {
+      const userData = await fetchUserData(result.user.uid);
+      if (!userData) {
+        const now = Timestamp.now();
+        const newUser = {
+          uid: result.user.uid,
+          email: result.user.email || '',
+          name: result.user.displayName || '',
+          displayName: result.user.displayName || '',
+          photoURL: result.user.photoURL || '',
+          birthDate: now,
+          lifeExpectancy: 80,
+          isPublic: false,
+          pushNotifications: true,
+          gameStats: {
+            level: 1,
+            experience: 0,
+            questsCompleted: 0,
+            points: 0,
+            streak: 0,
+            lastActive: now,
+            achievements: [],
+            nextLevelExp: 100
+          },
+          blocks: {},
+          createdAt: now,
+          updatedAt: now,
+          lastLoginAt: now,
+          quests: 0,
+          level: 1,
+          points: 0,
+          streak: 0,
+          lastActive: now,
+          achievements: [],
+          settings: {
+            theme: 'light',
+            notifications: true,
+            language: 'ko'
+          }
+        };
+        await createNewUser(newUser);
+      }
     }
     return result;
   } catch (error) {
