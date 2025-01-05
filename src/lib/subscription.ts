@@ -3,6 +3,8 @@
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Firebase } from '@/lib/firebase';
 import type { User } from '@/types';
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import type { Notification } from '@/types';
 
 export async function subscribeToGoal(
   goalId: string,
@@ -75,4 +77,68 @@ export async function checkSubscriptionStatus(
     console.error('구독 상태 확인 중 오류 발생:', error);
     return false;
   }
+}
+
+export interface SubscriptionCallback {
+  onNotification?: (notification: Notification) => void;
+  onError?: (error: Error) => void;
+}
+
+export function subscribeToNotifications(
+  userId: string,
+  callbacks: SubscriptionCallback
+) {
+  const notificationsRef = collection(Firebase.db, 'notifications');
+  const q = query(
+    notificationsRef,
+    where('userId', '==', userId),
+    where('read', '==', false),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const notification = {
+            id: change.doc.id,
+            ...change.doc.data()
+          } as Notification;
+          
+          callbacks.onNotification?.(notification);
+          
+          // 푸시 알림 표시 (브라우저 알림 API 사용)
+          if (Notification.permission === 'granted') {
+            new Notification(notification.title, {
+              body: notification.message,
+              icon: '/icon-192x192.png'
+            });
+          }
+        }
+      });
+    },
+    (error) => {
+      console.error('알림 구독 중 오류:', error);
+      callbacks.onError?.(error);
+    }
+  );
+}
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (!('Notification' in window)) {
+    console.log('이 브라우저는 알림을 지원하지 않습니다.');
+    return false;
+  }
+
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+
+  return false;
 } 

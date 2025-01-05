@@ -2,51 +2,46 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import LifeProgress from '@/components/LifeProgress';
-import useStore from '@/store/useStore';
+import { LoginButton } from '@/components/LoginButton';
+import { useAuthStore } from '@/store/auth';
+import { useToast } from '@/hooks/use-toast';
 
-export default function HomePage() {
-  const { user } = useStore();
+export default function Home() {
   const router = useRouter();
+  const { user, isLoading } = useAuthStore();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    if (user) {
+      toast({
+        title: '환영합니다!',
+        description: `${user.displayName}님, 다시 만나서 반갑습니다.`,
+      });
+      router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, router, toast]);
 
-  if (!user) {
-    return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            안녕하세요, {user.name || '사용자'}님!
-          </h1>
-          <p className="text-gray-600">
-            오늘도 목표를 향해 한 걸음 더 나아가보세요.
+    <main className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight">Life Progress</h1>
+          <p className="mt-3 text-lg text-muted-foreground">
+            인생의 진행도를 시각화하고 목표를 관리하세요
           </p>
         </div>
-
-        <div className="space-y-6">
-          <LifeProgress user={user} />
-
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">오늘의 할 일</h2>
-            {/* 여기에 할 일 목록 컴포넌트 추가 예정 */}
-            <p className="text-gray-500">아직 등록된 할 일이 없습니다.</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">최근 활동</h2>
-            {/* 여기에 활동 목록 컴포넌트 추가 예정 */}
-            <p className="text-gray-500">아직 기록된 활동이 없습니다.</p>
-          </div>
+        <div className="mt-8">
+          <LoginButton />
         </div>
       </div>
-    </div>
+    </main>
   );
 }

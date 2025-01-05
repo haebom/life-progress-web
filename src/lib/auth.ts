@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import type { User } from '@/types';
+import type { User, UserProfile } from '@/types';
 
 export class AuthError extends Error {
   constructor(message: string) {
@@ -23,10 +23,8 @@ export function useAuth() {
         if (firebaseUser) {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            setUser({
-              uid: firebaseUser.uid,
-              ...userDoc.data()
-            } as User);
+            const userData = userDoc.data() as UserProfile;
+            setUser({ ...firebaseUser, ...userData } as User);
           }
         } else {
           setUser(null);
@@ -47,7 +45,7 @@ export function useAuth() {
 
 export async function updateUserProfile(
   userId: string,
-  profile: Partial<User>
+  profile: Partial<UserProfile>
 ) {
   try {
     const userRef = doc(db, 'users', userId);
@@ -60,11 +58,11 @@ export async function updateUserProfile(
 
 export async function updateUserSettings(
   userId: string,
-  settings: Partial<User>
+  settings: Partial<UserProfile['settings']>
 ) {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, settings);
+    await updateDoc(userRef, { settings });
   } catch (error) {
     console.error('사용자 설정 업데이트 실패:', error);
     throw new AuthError('설정 업데이트에 실패했습니다.');
@@ -75,7 +73,12 @@ export async function getUserProfile(userId: string): Promise<User | null> {
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (userDoc.exists()) {
-      return userDoc.data() as User;
+      const userData = userDoc.data() as UserProfile;
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser && firebaseUser.uid === userId) {
+        return { ...firebaseUser, ...userData } as User;
+      }
+      return { ...userData } as User;
     }
     return null;
   } catch (error) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { FaTrophy, FaStar, FaMedal } from 'react-icons/fa';
 import { Firebase } from '@/lib/firebase';
-import type { User } from '@/types';
+import type { User, BaseUser } from '@/types';
 import StatCard from './StatCard';
 
 interface ProfileViewProps {
@@ -53,7 +53,40 @@ export default function ProfileView({ userId }: ProfileViewProps) {
       try {
         const userData = await Firebase.fetchUserData(userId);
         if (userData) {
-          setUser(userData);
+          const firebaseUser = Firebase.auth.currentUser;
+          if (firebaseUser && firebaseUser.uid === userId) {
+            setUser({ ...firebaseUser, ...userData });
+          } else {
+            const baseUser = {
+              uid: userData.uid,
+              email: userData.email,
+              emailVerified: false,
+              isAnonymous: false,
+              metadata: {
+                creationTime: userData.createdAt.toDate().toISOString(),
+                lastSignInTime: userData.lastLoginAt.toDate().toISOString(),
+              },
+              providerData: [{
+                providerId: 'custom',
+                uid: userData.uid,
+                displayName: userData.displayName,
+                email: userData.email,
+                phoneNumber: null,
+                photoURL: userData.photoURL,
+              }],
+              refreshToken: '',
+              tenantId: null,
+              phoneNumber: null,
+              providerId: 'custom',
+              delete: async () => { throw new Error('Operation not supported'); },
+              getIdToken: async () => { throw new Error('Operation not supported'); },
+              getIdTokenResult: async () => { throw new Error('Operation not supported'); },
+              reload: async () => { throw new Error('Operation not supported'); },
+              toJSON: () => ({ uid: userData.uid }),
+            } as unknown as BaseUser;
+            
+            setUser({ ...baseUser, ...userData });
+          }
         } else {
           setError('사용자를 찾을 수 없습니다.');
         }
@@ -164,7 +197,7 @@ export default function ProfileView({ userId }: ProfileViewProps) {
               {loading ? (
                 <LoadingText width="w-32" />
               ) : (
-                user?.lastActive?.toDate().toLocaleDateString() || '알 수 없음'
+                user?.gameStats.lastActive?.toDate().toLocaleDateString() || '알 수 없음'
               )}
             </span>
           </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Life Progress',
@@ -6,10 +6,4 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
-  themeColor: '#ffffff',
 }; 

@@ -5,11 +5,13 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-  type User as FirebaseUser,
-  type AuthError
+  browserLocalPersistence,
+  User as FirebaseUser,
+  AuthError
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -17,428 +19,397 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  Timestamp,
   collection,
+  getDocs,
   query,
   where,
-  getDocs,
-  Timestamp,
-  deleteDoc,
-  serverTimestamp,
-  DocumentData,
-  addDoc,
+  orderBy,
+  addDoc
 } from 'firebase/firestore';
-import type { User, Quest } from '@/types';
+import { getStorage } from 'firebase/storage';
+import { getAnalytics } from 'firebase/analytics';
 
-// Firebase 설정
+import { useAuthStore } from '@/store/auth';
+import { isInAppBrowser, isSafariBrowser, validateDomain } from '@/utils/browser';
+import type { User, UserProfile, AuthResult, Quest } from '@/types';
+
+const AUTHORIZED_DOMAINS = ['localhost', 'life-progress.vercel.app'];
+
 const firebaseConfig = {
-  apiKey: "AIzaSyB73bnwE9jTVqiTAvb2BvginUFAgvAcZtw",
-  authDomain: "blocks-1b622.firebaseapp.com",
-  projectId: "blocks-1b622",
-  storageBucket: "blocks-1b622.firebasestorage.app",
-  messagingSenderId: "486313931623",
-  appId: "1:486313931623:web:2c81258f6c05e2bb8d75c2",
-  measurementId: "G-QZH0VBXH25"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Firebase 초기화
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
+class FirebaseService {
+  private static instance: FirebaseService;
+  private app;
+  private auth;
+  private db;
+  private storage;
+  private analytics;
+  private provider;
 
-// 인앱 브라우저 감지
-function isInAppBrowser(): boolean {
-  if (typeof window === 'undefined') return false;
-  
-  const ua = window.navigator.userAgent;
-  return (
-    ua.includes('FBAN') || // Facebook
-    ua.includes('FBAV') || // Facebook
-    ua.includes('Twitter') || // Twitter
-    ua.includes('Instagram') || // Instagram
-    ua.includes('Line') || // Line
-    ua.includes('KAKAOTALK') // KakaoTalk
-  );
-}
-
-// Safari 브라우저 감지
-function isSafariBrowser(): boolean {
-  if (typeof window === 'undefined') return false;
-  
-  const ua = window.navigator.userAgent;
-  return ua.includes('Safari') && !ua.includes('Chrome');
-}
-
-// 외부 브라우저로 열기 유도
-function openInExternalBrowser(url: string): void {
-  if (isInAppBrowser()) {
-    window.location.href = `googlechrome://navigate?url=${encodeURIComponent(url)}`;
-    setTimeout(() => {
-      window.location.href = url;
-    }, 2000);
-  }
-}
-
-// Google 로그인 프로바이더 설정
-const provider = new GoogleAuthProvider();
-provider.addScope('profile');
-provider.addScope('email');
-provider.setCustomParameters({
-  prompt: 'select_account',
-  login_hint: 'user@example.com'
-});
-
-// 승인된 도메인 목록
-const AUTHORIZED_DOMAINS = [
-  'localhost',
-  'localhost:3000',
-  'blocks-1b622.firebaseapp.com',
-  'blocks-1b622.web.app',
-  'life-progress-web.vercel.app'
-];
-
-// 도메인 검증
-const validateDomain = () => {
-  if (typeof window === 'undefined') return true;
-  
-  const currentDomain = window.location.hostname;
-  return AUTHORIZED_DOMAINS.some(domain => 
-    currentDomain === domain || 
-    currentDomain.endsWith(`.${domain}`)
-  );
-};
-
-// Google 로그인 함수
-const signInWithGoogle = async () => {
-  try {
-    console.log('Starting Google sign in process...');
+  private constructor() {
+    this.app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    this.auth = getAuth(this.app);
+    this.db = getFirestore(this.app);
+    this.storage = getStorage(this.app);
     
-    if (!validateDomain()) {
-      console.error('Domain validation failed');
-      throw new Error('승인되지 않은 도메인입니다.');
+    if (typeof window !== 'undefined') {
+      this.analytics = getAnalytics(this.app);
     }
 
-    if (isInAppBrowser()) {
-      console.log('Detected in-app browser, redirecting...');
-      const currentUrl = window.location.href;
-      openInExternalBrowser(currentUrl);
-      return;
-    }
-
-    console.log('Attempting popup sign in...');
-    const result = await signInWithPopup(auth, provider);
-    console.log('Sign in successful:', result.user.email);
-
-    if (result?.user) {
-      const userData = await fetchUserData(result.user.uid);
-      if (!userData) {
-        console.log('Creating new user...');
-        const now = Timestamp.now();
-        const newUser = {
-          uid: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || '',
-          displayName: result.user.displayName || '',
-          photoURL: result.user.photoURL || '',
-          birthDate: now,
-          lifeExpectancy: 80,
-          isPublic: false,
-          pushNotifications: true,
-          gameStats: {
-            level: 1,
-            experience: 0,
-            questsCompleted: 0,
-            points: 0,
-            streak: 0,
-            lastActive: now,
-            achievements: [],
-            nextLevelExp: 100
-          },
-          blocks: {},
-          createdAt: now,
-          updatedAt: now,
-          lastLoginAt: now,
-          quests: 0,
-          level: 1,
-          points: 0,
-          streak: 0,
-          lastActive: now,
-          achievements: [],
-          settings: {
-            theme: 'light',
-            notifications: true,
-            language: 'ko'
-          }
-        };
-        await createNewUser(newUser);
-        console.log('New user created successfully');
-      } else {
-        console.log('Existing user found:', userData.email);
-      }
-    }
-    return result;
-  } catch (error) {
-    console.error('Google 로그인 중 상세 오류:', error);
-    const authError = error as AuthError;
-    if (authError.code === 'auth/popup-blocked') {
-      console.log('Popup was blocked by browser');
-      throw new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
-    } else if (authError.code === 'auth/popup-closed-by-user') {
-      console.log('User closed the popup');
-      throw new Error('로그인이 취소되었습니다.');
-    } else if (authError.code === 'auth/cancelled-popup-request') {
-      console.log('Popup request was cancelled');
-      throw new Error('로그인 요청이 취소되었습니다.');
-    }
-    throw error;
-  }
-};
-
-// 리디렉트 결과 확인
-const getGoogleRedirectResult = async () => {
-  try {
-    const result = await getRedirectResult(auth);
-    if (result?.user) {
-      const userData = await fetchUserData(result.user.uid);
-      if (!userData) {
-        const now = Timestamp.now();
-        const newUser = {
-          uid: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || '',
-          displayName: result.user.displayName || '',
-          photoURL: result.user.photoURL || '',
-          birthDate: now,
-          lifeExpectancy: 80,
-          isPublic: false,
-          pushNotifications: true,
-          gameStats: {
-            level: 1,
-            experience: 0,
-            questsCompleted: 0,
-            points: 0,
-            streak: 0,
-            lastActive: now,
-            achievements: [],
-            nextLevelExp: 100
-          },
-          blocks: {},
-          createdAt: now,
-          updatedAt: now,
-          lastLoginAt: now,
-          quests: 0,
-          level: 1,
-          points: 0,
-          streak: 0,
-          lastActive: now,
-          achievements: [],
-          settings: {
-            theme: 'light',
-            notifications: true,
-            language: 'ko'
-          }
-        };
-        await createNewUser(newUser);
-      }
-    }
-    return result;
-  } catch (error) {
-    console.error('리디렉트 결과 확인 중 오류:', error);
-    throw error;
-  }
-};
-
-// Auth 초기화
-const initializeAuth = (callback: (user: FirebaseUser | null) => void) => {
-  return onAuthStateChanged(auth, callback);
-};
-
-// 로그아웃 함수
-const signOutUser = () => signOut(auth);
-
-// 사용자 데이터 함수들
-async function fetchUserData(uid: string): Promise<User | null> {
-  try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    return userDoc.exists() ? userDoc.data() as User : null;
-  } catch (error) {
-    console.error('사용자 데이터 불러오기 실패:', error);
-    throw error;
-  }
-}
-
-async function createNewUser(user: Omit<User, 'id'>) {
-  try {
-    await setDoc(doc(db, 'users', user.uid), user);
-  } catch (error) {
-    console.error('새 사용자 생성 실패:', error);
-    throw error;
-  }
-}
-
-async function updateUserProfile(uid: string, data: Partial<User>) {
-  try {
-    const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
-      ...data,
-      updatedAt: Timestamp.now(),
+    this.provider = new GoogleAuthProvider();
+    this.provider.addScope('profile');
+    this.provider.addScope('email');
+    this.provider.setCustomParameters({
+      prompt: 'select_account'
     });
-  } catch (error) {
-    console.error('프로필 업데이트 실패:', error);
-    throw error;
-  }
-}
 
-// Quest 관련 함수들
-async function createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>) {
-  try {
-    const questRef = doc(collection(db, 'quests'));
+    // 인증 상태 변경 감지
+    this.initializeAuthStateListener();
+  }
+
+  private initializeAuthStateListener() {
+    const { setUser, initialize } = useAuthStore.getState();
+    
+    onAuthStateChanged(this.auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userData = await this.fetchUserData(firebaseUser.uid);
+        if (userData) {
+          setUser({ ...firebaseUser, ...userData } as User);
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      initialize();
+    });
+  }
+
+  public static getInstance(): FirebaseService {
+    if (!FirebaseService.instance) {
+      FirebaseService.instance = new FirebaseService();
+    }
+    return FirebaseService.instance;
+  }
+
+  private async handleAuthResult(result: { user: FirebaseUser }): Promise<AuthResult> {
+    const { setUser } = useAuthStore.getState();
+    
+    const userData = await this.fetchUserData(result.user.uid);
+    if (!userData) {
+      const userProfile = this.createInitialUserData(result.user);
+      await this.createNewUser(userProfile);
+      const newUser = { ...result.user, ...userProfile } as User;
+      setUser(newUser);
+      return { type: 'success', user: newUser };
+    }
+    
+    await this.updateUserProfile(userData.uid, {
+      lastLoginAt: Timestamp.now()
+    });
+    const updatedUser = { ...result.user, ...userData } as User;
+    setUser(updatedUser);
+    return { type: 'success', user: updatedUser };
+  }
+
+  private handleAuthError(error: unknown): AuthResult {
+    console.error('Authentication error:', error);
+    
+    let message = '로그인 중 오류가 발생했습니다.';
+    if (error instanceof Error) {
+      const authError = error as AuthError;
+      switch (authError.code) {
+        case 'auth/popup-blocked':
+          message = '팝업이 차단되었습니다. 팝업 차단을 해제해주세요.';
+          break;
+        case 'auth/popup-closed-by-user':
+          message = '로그인이 취소되었습니다.';
+          break;
+        case 'auth/cancelled-popup-request':
+          message = '로그인 요청이 취소되었습니다.';
+          break;
+        case 'auth/unauthorized-domain':
+          message = '승인되지 않은 도메인입니다.';
+          break;
+      }
+    }
+    
+    useAuthStore.getState().setError(message);
+    return { type: 'error', message };
+  }
+
+  public async signInWithGoogle(): Promise<AuthResult> {
+    const { setLoading } = useAuthStore.getState();
+    
+    try {
+      setLoading(true);
+      
+      if (!validateDomain(AUTHORIZED_DOMAINS)) {
+        throw new Error('승인되지 않은 도메인입니다.');
+      }
+
+      if (isInAppBrowser()) {
+        return { type: 'in_app_browser' };
+      }
+
+      if (isSafariBrowser()) {
+        await this.auth.setPersistence(browserLocalPersistence);
+        await signInWithRedirect(this.auth, this.provider);
+        return { type: 'redirect' };
+      }
+
+      const result = await signInWithPopup(this.auth, this.provider);
+      return await this.handleAuthResult(result);
+      
+    } catch (error) {
+      return this.handleAuthError(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  public async getGoogleRedirectResult(): Promise<AuthResult> {
+    const { setLoading } = useAuthStore.getState();
+    
+    try {
+      setLoading(true);
+      const result = await getRedirectResult(this.auth);
+      
+      if (result) {
+        return await this.handleAuthResult(result);
+      }
+      
+      return { type: 'no_result' };
+    } catch (error) {
+      return this.handleAuthError(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  public async signOut(): Promise<void> {
+    const { reset } = useAuthStore.getState();
+    await signOut(this.auth);
+    reset();
+  }
+
+  // Firebase 인스턴스 getter
+  public getApp() {
+    return this.app;
+  }
+
+  public getAuth() {
+    return this.auth;
+  }
+
+  public getDb() {
+    return this.db;
+  }
+
+  public getStorage() {
+    return this.storage;
+  }
+
+  public getAnalytics() {
+    return this.analytics;
+  }
+
+  private createInitialUserData(user: FirebaseUser): UserProfile {
     const now = Timestamp.now();
-    const quest: Quest = {
-      id: questRef.id,
-      ...questData,
+    return {
+      uid: user.uid,
+      email: user.email || '',
+      name: user.displayName || '',
+      displayName: user.displayName || '',
+      photoURL: user.photoURL || '',
+      birthDate: now,
+      lifeExpectancy: 80,
+      isPublic: false,
+      pushNotifications: true,
+      gameStats: {
+        level: 1,
+        experience: 0,
+        questsCompleted: 0,
+        points: 0,
+        streak: 0,
+        lastActive: now,
+        achievements: [],
+        nextLevelExp: 100
+      },
+      blocks: {},
       createdAt: now,
       updatedAt: now,
+      lastLoginAt: now,
+      lastActive: now,
+      settings: {
+        theme: 'light',
+        notifications: true,
+        language: 'ko'
+      },
+      followers: [],
+      following: [],
     };
-    await setDoc(questRef, quest);
-    return quest;
-  } catch (error) {
-    console.error('퀘스트 생성 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-async function getQuests(userId: string) {
-  if (!userId) {
-    console.error('유저 ID가 없습니다.');
-    return [];
   }
 
-  try {
-    const questsRef = collection(db, 'quests');
-    const q = query(questsRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...(doc.data() as DocumentData)
-    })) as Quest[];
-  } catch (error) {
-    console.error('퀘스트 목록 조회 오류:', error);
-    throw error;
-  }
-}
-
-async function getQuest(questId: string): Promise<Quest | null> {
-  try {
-    const questDoc = await getDoc(doc(db, 'quests', questId));
-    if (questDoc.exists()) {
-      return questDoc.data() as Quest;
+  public async fetchUserData(uid: string): Promise<UserProfile | null> {
+    try {
+      const userDoc = await getDoc(doc(this.db, 'users', uid));
+      return userDoc.exists() ? userDoc.data() as UserProfile : null;
+    } catch (error) {
+      console.error('사용자 데이터 조회 실패:', error);
+      return null;
     }
-    return null;
-  } catch (error) {
-    console.error('퀘스트를 가져오는 중 오류 발생:', error);
-    throw error;
+  }
+
+  public async createNewUser(user: UserProfile): Promise<void> {
+    try {
+      await setDoc(doc(this.db, 'users', user.uid), user);
+    } catch (error) {
+      console.error('새 사용자 생성 실패:', error);
+      throw error;
+    }
+  }
+
+  public async updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
+    try {
+      const userRef = doc(this.db, 'users', uid);
+      await updateDoc(userRef, {
+        ...data,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('사용자 프로필 업데이트 실패:', error);
+      throw error;
+    }
+  }
+
+  public async getQuests(userId: string): Promise<Quest[]> {
+    try {
+      const questsRef = collection(this.db, 'quests');
+      const q = query(questsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Quest[];
+    } catch (error) {
+      console.error('Error fetching quests:', error);
+      return [];
+    }
+  }
+
+  public async createQuest(questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+    try {
+      const questsRef = collection(this.db, 'quests');
+      const now = Timestamp.now();
+      
+      await addDoc(questsRef, {
+        ...questData,
+        createdAt: now,
+        updatedAt: now
+      });
+    } catch (error) {
+      console.error('Error creating quest:', error);
+      throw error;
+    }
+  }
+
+  public async getQuest(questId: string): Promise<Quest | null> {
+    try {
+      const questDoc = await getDoc(doc(this.db, 'quests', questId));
+      if (questDoc.exists()) {
+        return { id: questDoc.id, ...questDoc.data() } as Quest;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching quest:', error);
+      throw error;
+    }
+  }
+
+  public async updateQuest(questId: string, questData: Partial<Quest>): Promise<void> {
+    try {
+      const questRef = doc(this.db, 'quests', questId);
+      const updateData = {
+        ...questData,
+        updatedAt: Timestamp.now()
+      };
+      await updateDoc(questRef, updateData);
+    } catch (error) {
+      console.error('Error updating quest:', error);
+      throw error;
+    }
+  }
+
+  public async createNotification(
+    userId: string,
+    title: string,
+    message: string,
+    type: 'system' | 'user' | 'quest',
+    metadata: Record<string, any> = {}
+  ): Promise<void> {
+    try {
+      const notificationsRef = collection(this.db, 'notifications');
+      const now = Timestamp.now();
+      
+      await addDoc(notificationsRef, {
+        userId,
+        title,
+        message,
+        type,
+        metadata,
+        read: false,
+        createdAt: now
+      });
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
   }
 }
 
-async function updateQuest(questId: string, updates: Partial<Quest>) {
-  try {
-    const questRef = doc(db, 'quests', questId);
-    await updateDoc(questRef, {
-      ...updates,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('퀘스트 업데이트 중 오류 발생:', error);
-    throw error;
-  }
-}
+// Firebase 서비스 인스턴스 생성
+const firebaseService = FirebaseService.getInstance();
 
-async function deleteQuest(questId: string) {
-  try {
-    await deleteDoc(doc(db, 'quests', questId));
-  } catch (error) {
-    console.error('퀘스트 삭제 중 오류 발생:', error);
-    throw error;
-  }
-}
+// Firebase 인스턴스 export
+export const app = firebaseService.getApp();
+export const auth = firebaseService.getAuth();
+export const db = firebaseService.getDb();
+export const storage = firebaseService.getStorage();
+export const analytics = firebaseService.getAnalytics();
 
-// 알림 관련 인터페이스와 함수
-export interface NotificationData {
-  questId?: string;
-  goalId?: string;
-  friendId?: string;
-  senderName?: string;
-  senderPhotoURL?: string;
-  progress?: number;
-  [key: string]: unknown;
-}
-
-async function createNotification(
-  userId: string,
-  title: string,
-  message: string,
-  type: string,
-  data?: NotificationData
-) {
-  try {
-    const notificationsRef = collection(db, 'notifications');
-    const notification = {
-      userId,
-      title,
-      message,
-      type,
-      data,
-      read: false,
-      createdAt: serverTimestamp(),
-    };
-    
-    await addDoc(notificationsRef, notification);
-  } catch (error) {
-    console.error('알림 생성 중 오류 발생:', error);
-    throw error;
-  }
-}
-
-export class Firebase {
-  static app = app;
-  static auth = auth;
-  static db = db;
-
-  static isInAppBrowser = isInAppBrowser;
-  static isSafariBrowser = isSafariBrowser;
-  static signInWithGoogle = signInWithGoogle;
-  static getGoogleRedirectResult = getGoogleRedirectResult;
-  static initializeAuth = initializeAuth;
-  static signOutUser = signOutUser;
-  static fetchUserData = fetchUserData;
-  static createNewUser = createNewUser;
-  static updateUserProfile = updateUserProfile;
-  static createQuest = createQuest;
-  static getQuests = getQuests;
-  static getQuest = getQuest;
-  static updateQuest = updateQuest;
-  static deleteQuest = deleteQuest;
-  static createNotification = createNotification;
-}
-
-// 하위 호환성을 위한 export
-export {
+// Firebase 서비스 export
+export const Firebase = {
   app,
   auth,
   db,
-  isInAppBrowser,
-  isSafariBrowser,
-  signInWithGoogle,
-  getGoogleRedirectResult,
-  initializeAuth,
-  signOutUser,
-  fetchUserData,
-  createNewUser,
-  updateUserProfile,
-  createQuest,
-  getQuests,
-  getQuest,
-  updateQuest,
-  deleteQuest,
-  createNotification,
+  storage,
+  analytics,
+  signInWithGoogle: () => firebaseService.signInWithGoogle(),
+  getGoogleRedirectResult: () => firebaseService.getGoogleRedirectResult(),
+  signOut: () => firebaseService.signOut(),
+  fetchUserData: (uid: string) => firebaseService.fetchUserData(uid),
+  createNewUser: (user: UserProfile) => firebaseService.createNewUser(user),
+  updateUserProfile: (uid: string, data: Partial<UserProfile>) => firebaseService.updateUserProfile(uid, data),
+  getQuests: (userId: string) => firebaseService.getQuests(userId),
+  createQuest: (questData: Omit<Quest, 'id' | 'createdAt' | 'updatedAt'>) => firebaseService.createQuest(questData),
+  getQuest: (questId: string) => firebaseService.getQuest(questId),
+  updateQuest: (questId: string, questData: Partial<Quest>) => firebaseService.updateQuest(questId, questData),
+  createNotification: (
+    userId: string,
+    title: string,
+    message: string,
+    type: 'system' | 'user' | 'quest',
+    metadata?: Record<string, any>
+  ) => firebaseService.createNotification(userId, title, message, type, metadata)
 }; 

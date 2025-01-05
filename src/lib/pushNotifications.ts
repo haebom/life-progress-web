@@ -1,4 +1,9 @@
-import { PushNotifications } from '@capacitor/push-notifications';
+import { 
+  PushNotifications,
+  Token,
+  PushNotificationSchema,
+  ActionPerformed
+} from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
 export const initPushNotifications = async () => {
@@ -11,19 +16,19 @@ export const initPushNotifications = async () => {
         await PushNotifications.register();
 
         // 푸시 토큰 수신 리스너
-        PushNotifications.addListener('registration', (token) => {
+        PushNotifications.addListener('registration', (token: Token) => {
           console.log('Push registration success:', token.value);
           // TODO: 토큰을 서버에 저장
         });
 
         // 푸시 알림 수신 리스너
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
           console.log('Push received:', notification);
         });
 
         // 푸시 알림 응답 리스너
-        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          console.log('Push action performed:', notification);
+        PushNotifications.addListener('pushNotificationActionPerformed', (response: ActionPerformed) => {
+          console.log('Push action performed:', response.notification);
         });
       }
     } catch (error) {

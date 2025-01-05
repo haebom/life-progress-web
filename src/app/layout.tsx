@@ -1,25 +1,23 @@
 import { Inter } from 'next/font/google';
-import ClientLayout from '../components/ClientLayout';
+import { metadata } from './metadata';
 import './globals.css';
+import ClientLayout from '@/components/ClientLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata = {
-  title: 'Life Progress',
-  description: '인생의 진행도를 시각화하고 목표를 관리하세요',
-};
-
-export default function RootLayout({
-  children,
-}: {
+interface RootLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <title>{metadata.title as string}</title>
+        <meta name="description" content={metadata.description as string} />
+      </head>
       <body className={inter.className}>
-        <ClientLayout>
-          {children}
-        </ClientLayout>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
