@@ -16,7 +16,12 @@ export default function LoginPage() {
 
   const handleUserLogin = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
-      console.log('사용자 로그인 처리 시작:', firebaseUser.uid);
+      console.log('===== 로그인 프로세스 시작 =====');
+      console.log('1. Firebase 사용자 정보:', {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        emailVerified: firebaseUser.emailVerified
+      });
       setLoading(true);
       
       // 이전 상태 초기화
@@ -24,30 +29,51 @@ export default function LoginPage() {
       localStorage.removeItem('auth_redirect_url');
       
       // Firestore에서 사용자 데이터 조회
-      const userDoc = await getDoc(doc(Firebase.db, 'users', firebaseUser.uid));
+      console.log('2. Firestore 사용자 문서 조회 시작');
+      const userDocRef = doc(Firebase.db, 'users', firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      console.log('3. Firestore 문서 존재 여부:', userDoc.exists());
       
       if (userDoc.exists()) {
-        console.log('기존 사용자 데이터 로드');
+        console.log('4. 기존 사용자 데이터 로드 시작');
         const userData = userDoc.data() as User;
+        console.log('5. 사용자 데이터:', userData);
         
-        // 마지막 로그인 시간 업데이트
-        await updateDoc(doc(Firebase.db, 'users', firebaseUser.uid), {
-          lastLoginAt: Timestamp.now()
-        });
+        try {
+          console.log('6. 마지막 로그인 시간 업데이트 시작');
+          await updateDoc(userDocRef, {
+            lastLoginAt: Timestamp.now()
+          });
+          console.log('7. 마지막 로그인 시간 업데이트 완료');
+        } catch (updateError) {
+          console.error('마지막 로그인 시간 업데이트 실패:', updateError);
+          // 업데이트 실패해도 로그인 진행
+        }
         
+        console.log('8. Zustand 스토어에 사용자 정보 설정');
         setUser(userData);
+        console.log('9. 로컬 스토리지에 로그인 상태 저장');
         localStorage.setItem('auth_state', 'logged_in');
+        console.log('10. 대시보드로 라우팅 시도');
         router.push('/dashboard');
+        console.log('11. 라우팅 명령 실행됨');
       } else {
-        console.log('신규 사용자 초기 설정으로 이동');
+        console.log('4. 신규 사용자 감지, 초기 설정으로 이동');
         router.push('/initial-setup');
       }
     } catch (error) {
-      console.error('사용자 데이터 처리 중 오류:', error);
+      console.error('===== 로그인 프로세스 에러 =====');
+      console.error('에러 상세:', error);
+      if (error instanceof Error) {
+        console.error('에러 이름:', error.name);
+        console.error('에러 메시지:', error.message);
+        console.error('에러 스택:', error.stack);
+      }
       setError('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       localStorage.removeItem('auth_state');
     } finally {
       setLoading(false);
+      console.log('===== 로그인 프로세스 종료 =====');
     }
   }, [router, setUser]);
 
@@ -73,32 +99,45 @@ export default function LoginPage() {
   }, [handleUserLogin]);
 
   useEffect(() => {
-    console.log('로그인 페이지 마운트');
+    console.log('===== 로그인 페이지 초기화 =====');
+    console.log('1. 현재 URL:', window.location.href);
+    console.log('2. 로컬 스토리지 상태:', {
+      auth_state: localStorage.getItem('auth_state'),
+      auth_pending: localStorage.getItem('auth_pending'),
+      redirect_url: localStorage.getItem('auth_redirect_url')
+    });
     
     // 이미 로그인된 경우 처리
     const authState = localStorage.getItem('auth_state');
     if (authState === 'logged_in') {
-      console.log('이미 로그인된, 대시보드로 이동');
+      console.log('3. 이미 로그인된 상태 감지, 대시보드로 이동 시도');
       router.push('/dashboard');
       return;
     }
 
     // 인증 상태 감지 설정
+    console.log('3. Firebase 인증 상태 감지 설정');
     const unsubscribe = Firebase.auth.onAuthStateChanged(async (user) => {
-      console.log('인증 상태 변경:', user ? '로그인됨' : '로그아웃됨');
-      
+      console.log('4. 인증 상태 변경 감지:', user ? '로그인됨' : '로그아웃됨');
       if (user) {
+        console.log('5. 감지된 사용자 정보:', {
+          uid: user.uid,
+          email: user.email,
+          emailVerified: user.emailVerified
+        });
         await handleUserLogin(user);
       } else {
+        console.log('5. 로그아웃 상태 감지됨');
         localStorage.removeItem('auth_state');
       }
     });
 
     // 리디렉션 결과 확인
+    console.log('6. 리디렉션 결과 확인 시작');
     handleRedirectResult();
 
     return () => {
-      console.log('로그인 페이지 언마운트');
+      console.log('===== 로그인 페이지 정리 =====');
       unsubscribe();
     };
   }, [handleUserLogin, handleRedirectResult, router]);
