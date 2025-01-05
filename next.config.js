@@ -51,7 +51,6 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['firebase', '@firebase/auth', '@firebase/firestore'],
-    optimizeFonts: false,
   },
   output: 'standalone',
   trailingSlash: false,
