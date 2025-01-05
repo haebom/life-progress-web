@@ -1,5 +1,3 @@
-'use client';
-
 import { Inter } from 'next/font/google';
 import { Metadata } from 'next';
 import './globals.css';
@@ -11,7 +9,7 @@ export const metadata: Metadata = {
   description: siteMetadata.description,
 };
 
-export const inter = Inter({
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
