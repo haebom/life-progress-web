@@ -54,6 +54,7 @@ const nextConfig = {
   },
   output: 'standalone',
   trailingSlash: false,
+  transpilePackages: ['next/font/google'],
   async redirects() {
     return [
       {

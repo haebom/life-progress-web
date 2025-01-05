@@ -1,15 +1,15 @@
-import { Inter } from 'next/font/google';
-import { Metadata } from 'next';
-import './globals.css';
-import ClientLayout from '@/components/ClientLayout';
-import { metadata as siteMetadata } from './metadata';
+import { Inter } from 'next/font/google'
+import { Metadata } from 'next'
+import './globals.css'
+import ClientLayout from '@/components/ClientLayout'
+import { metadata as siteMetadata } from './metadata'
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: siteMetadata.title,
   description: siteMetadata.description,
-};
+}
 
 export default function RootLayout({
   children,
@@ -22,5 +22,5 @@ export default function RootLayout({
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
-  );
+  )
 }
