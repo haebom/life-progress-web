@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { Firebase } from '@/lib/firebase';
 
 export default function LoginButton() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInAppBrowserModal, setShowInAppBrowserModal] = useState(false);
@@ -24,7 +22,7 @@ export default function LoginButton() {
 
       const result = await Firebase.signInWithGoogle();
       if (result?.user) {
-        router.push('/dashboard');
+        console.log('로그인 성공:', result.user.email);
       }
     } catch (err) {
       console.error('로그인 실패:', err);
