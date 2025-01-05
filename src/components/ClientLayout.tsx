@@ -31,6 +31,16 @@ export default function ClientLayout({
   });
   const redirectInProgress = useRef(false);
 
+  // 렌더링 상태 로깅
+  useEffect(() => {
+    console.log('[Layout] 렌더링 상태:', {
+      authState,
+      pathname,
+      user: user?.email,
+      redirectInProgress: redirectInProgress.current
+    });
+  }, [authState, pathname, user]);
+
   // 현재 경로가 공개 경로인지 확인
   const isPublicRoute = useCallback((path: string) => {
     return PUBLIC_ROUTES.includes(path);
@@ -76,7 +86,8 @@ export default function ClientLayout({
       setAuthState(prev => ({
         ...prev,
         isAuthChecked: true,
-        isLoading: false
+        isLoading: false,
+        isInitialized: true
       }));
     }
   }, [fetchUserDataAndUpdate, setUser, pathname, authState]);
@@ -122,11 +133,6 @@ export default function ClientLayout({
         await router.replace('/login');
         return;
       }
-
-      // 정상적인 접근인 경우 초기화 상태 업데이트
-      if (!authState.isInitialized) {
-        setAuthState(prev => ({ ...prev, isInitialized: true }));
-      }
     } catch (error) {
       console.error('[Routing] 처리 오류:', error);
     } finally {
@@ -158,19 +164,21 @@ export default function ClientLayout({
     handleRouting();
   }, [handleRouting]);
 
-  // 로딩 상태 표시
-  if (authState.isLoading || !authState.isAuthChecked || !authState.isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-1">
+      <main className="flex-1 relative">
         {children}
+        {/* 로딩 오버레이 */}
+        {(authState.isLoading || !authState.isAuthChecked) && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center z-50">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {authState.isLoading ? '로딩 중...' : '인증 확인 중...'}
+              </p>
+            </div>
+          </div>
+        )}
       </main>
       <BottomNavigation />
     </div>
