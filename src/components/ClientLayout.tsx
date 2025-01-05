@@ -29,24 +29,31 @@ export default function ClientLayout({
     const unsubscribe = Firebase.initializeAuth(async (firebaseUser) => {
       if (!isMounted) return;
 
+      console.log('Auth State Changed:', { firebaseUser: firebaseUser?.email, pathname });
+
       if (firebaseUser) {
         try {
           const userData = await Firebase.fetchUserData(firebaseUser.uid);
+          console.log('User Data Fetched:', { userData: userData?.email, pathname });
+
           if (!isMounted) return;
 
           if (userData) {
             setUser(userData);
             if (pathname === '/login') {
-              setTimeout(() => {
-                if (isMounted) {
-                  router.replace('/dashboard');
-                }
-              }, 100);
+              console.log('Redirecting to dashboard...');
+              try {
+                await router.push('/dashboard');
+                console.log('Redirect successful');
+              } catch (error) {
+                console.error('Redirect failed:', error);
+              }
             }
           } else {
+            console.log('No user data found, redirecting to login');
             setUser(null);
             if (pathname !== '/login') {
-              router.replace('/login');
+              router.push('/login');
             }
           }
         } catch (error) {
@@ -54,18 +61,20 @@ export default function ClientLayout({
           if (!isMounted) return;
           setUser(null);
           if (pathname !== '/login') {
-            router.replace('/login');
+            router.push('/login');
           }
         }
       } else {
+        console.log('No firebase user, redirecting to login');
         setUser(null);
         if (pathname !== '/login') {
-          router.replace('/login');
+          router.push('/login');
         }
       }
     });
 
     return () => {
+      console.log('Cleanup: Unsubscribing from auth state');
       isMounted = false;
       unsubscribe();
     };

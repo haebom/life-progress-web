@@ -17,6 +17,23 @@ const nextConfig = {
     };
     return config;
   },
+  output: 'standalone',
+  trailingSlash: false,
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        missing: [
+          {
+            type: 'header',
+            key: 'x-user-auth',
+          },
+        ],
+        permanent: false,
+        destination: '/login',
+      },
+    ];
+  },
 };
 
 module.exports = withPWA(nextConfig); 
