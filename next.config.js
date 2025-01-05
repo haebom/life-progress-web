@@ -51,10 +51,37 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['firebase', '@firebase/auth', '@firebase/firestore'],
+    optimizeCss: true,
+    forceSwcTransforms: true,
   },
   output: 'standalone',
   trailingSlash: false,
   transpilePackages: ['next/font/google'],
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  swcLoader: {
+    minify: true,
+    jsc: {
+      parser: {
+        syntax: 'typescript',
+        tsx: true,
+        decorators: true,
+        dynamicImport: true,
+      },
+      transform: {
+        react: {
+          runtime: 'automatic',
+          pragma: 'React.createElement',
+          pragmaFrag: 'React.Fragment',
+          throwIfNamespace: true,
+          development: process.env.NODE_ENV === 'development',
+          useBuiltins: true,
+        },
+      },
+    },
+  },
   async redirects() {
     return [
       {
