@@ -30,7 +30,6 @@ const nextConfig = {
       };
     }
 
-    // Firebase와 관련된 모듈 처리
     config.module.rules.push({
       test: /\.(mjs|js|jsx|ts|tsx)$/,
       exclude: /node_modules\/(?!(@firebase|firebase|undici)\/).*/,
@@ -60,27 +59,6 @@ const nextConfig = {
   swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
-  },
-  swcLoader: {
-    minify: true,
-    jsc: {
-      parser: {
-        syntax: 'typescript',
-        tsx: true,
-        decorators: true,
-        dynamicImport: true,
-      },
-      transform: {
-        react: {
-          runtime: 'automatic',
-          pragma: 'React.createElement',
-          pragmaFrag: 'React.Fragment',
-          throwIfNamespace: true,
-          development: process.env.NODE_ENV === 'development',
-          useBuiltins: true,
-        },
-      },
-    },
   },
   async redirects() {
     return [

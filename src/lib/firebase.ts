@@ -26,7 +26,7 @@ import {
   where,
   orderBy,
   addDoc
-} from 'firebase/firestore';
+} from 'firebase/firestore/lite';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
 
