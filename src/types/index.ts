@@ -97,6 +97,7 @@ export interface UserProfile {
   followers: string[];
   following: string[];
   isFollowing?: boolean;
+  fcmToken?: string;
 }
 
 export interface BaseUser extends FirebaseUser {

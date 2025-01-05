@@ -1,44 +1,70 @@
-import { 
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/auth';
+import { Firebase } from './firebase';
+import { Capacitor } from '@capacitor/core';
+import {
   PushNotifications,
-  Token,
   PushNotificationSchema,
+  Token,
   ActionPerformed
 } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
 
-export const initPushNotifications = async () => {
-  if (Capacitor.isNativePlatform()) {
+export const usePushNotifications = () => {
+  const [isRegistered, setIsRegistered] = useState(false);
+  const { user } = useAuthStore();
+
+  const registerPush = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+
     try {
       // 권한 요청
-      const permission = await PushNotifications.requestPermissions();
-      if (permission.receive === 'granted') {
+      const permissionStatus = await PushNotifications.requestPermissions();
+      if (permissionStatus.receive === 'granted') {
         // 푸시 알림 등록
         await PushNotifications.register();
-
-        // 푸시 토큰 수신 리스너
-        PushNotifications.addListener('registration', (token: Token) => {
-          console.log('Push registration success:', token.value);
-          // TODO: 토큰을 서버에 저장
-        });
-
-        // 푸시 알림 수신 리스너
-        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-          console.log('Push received:', notification);
-        });
-
-        // 푸시 알림 응답 리스너
-        PushNotifications.addListener('pushNotificationActionPerformed', (response: ActionPerformed) => {
-          console.log('Push action performed:', response.notification);
-        });
+        setIsRegistered(true);
       }
     } catch (error) {
-      console.error('Error initializing push notifications:', error);
+      console.error('푸시 알림 등록 실패:', error);
     }
-  }
-};
+  };
 
-export const removePushNotificationListeners = () => {
-  if (Capacitor.isNativePlatform()) {
-    PushNotifications.removeAllListeners();
-  }
+  useEffect(() => {
+    if (!user || isRegistered) return;
+
+    // 이벤트 리스너 등록
+    PushNotifications.addListener('registration', async (token: Token) => {
+      // FCM 토큰을 서버에 저장
+      if (user) {
+        try {
+          await Firebase.updateUserProfile(user.uid, {
+            fcmToken: token.value
+          });
+        } catch (error) {
+          console.error('FCM 토큰 저장 실패:', error);
+        }
+      }
+    });
+
+    PushNotifications.addListener('pushNotificationReceived', 
+      (notification: PushNotificationSchema) => {
+        // 알림 수신 처리
+        console.log('알림 수신:', notification);
+    });
+
+    PushNotifications.addListener('pushNotificationActionPerformed',
+      (action: ActionPerformed) => {
+        // 알림 액션 처리
+        console.log('알림 액션:', action);
+    });
+
+    registerPush();
+
+    return () => {
+      // 이벤트 리스너 제거
+      PushNotifications.removeAllListeners();
+    };
+  }, [user, isRegistered]);
+
+  return { isRegistered };
 }; 
