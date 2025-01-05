@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Firebase } from '@/lib/firebase';
 
@@ -9,14 +9,15 @@ export default function LoginButton() {
   const [error, setError] = useState<string | null>(null);
   const [showInAppBrowserModal, setShowInAppBrowserModal] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
+    if (isLoading) return; // 이미 로그인 진행 중이면 중복 실행 방지
+
     setIsLoading(true);
     setError(null);
 
     try {
       if (Firebase.isInAppBrowser()) {
         setShowInAppBrowserModal(true);
-        setIsLoading(false);
         return;
       }
 
@@ -26,11 +27,11 @@ export default function LoginButton() {
       }
     } catch (err) {
       console.error('로그인 실패:', err);
-      setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading]);
 
   if (showInAppBrowserModal) {
     return (

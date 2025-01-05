@@ -110,21 +110,28 @@ const validateDomain = () => {
 // Google 로그인 함수
 const signInWithGoogle = async () => {
   try {
+    console.log('Starting Google sign in process...');
+    
     if (!validateDomain()) {
+      console.error('Domain validation failed');
       throw new Error('승인되지 않은 도메인입니다.');
     }
 
     if (isInAppBrowser()) {
+      console.log('Detected in-app browser, redirecting...');
       const currentUrl = window.location.href;
       openInExternalBrowser(currentUrl);
       return;
     }
 
-    // 팝업 방식으로 통일
+    console.log('Attempting popup sign in...');
     const result = await signInWithPopup(auth, provider);
+    console.log('Sign in successful:', result.user.email);
+
     if (result?.user) {
       const userData = await fetchUserData(result.user.uid);
       if (!userData) {
+        console.log('Creating new user...');
         const now = Timestamp.now();
         const newUser = {
           uid: result.user.uid,
@@ -163,18 +170,24 @@ const signInWithGoogle = async () => {
           }
         };
         await createNewUser(newUser);
+        console.log('New user created successfully');
+      } else {
+        console.log('Existing user found:', userData.email);
       }
     }
     return result;
   } catch (error) {
-    console.error('Google 로그인 중 오류:', error);
+    console.error('Google 로그인 중 상세 오류:', error);
     const authError = error as AuthError;
     if (authError.code === 'auth/popup-blocked') {
-      alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+      console.log('Popup was blocked by browser');
+      throw new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+    } else if (authError.code === 'auth/popup-closed-by-user') {
+      console.log('User closed the popup');
+      throw new Error('로그인이 취소되었습니다.');
     } else if (authError.code === 'auth/cancelled-popup-request') {
-      console.log('로그인이 취소되었습니다.');
-    } else {
-      alert('로그인 중 오류가 발생했습니다: ' + authError.message);
+      console.log('Popup request was cancelled');
+      throw new Error('로그인 요청이 취소되었습니다.');
     }
     throw error;
   }

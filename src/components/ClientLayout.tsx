@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { initPushNotifications, removePushNotificationListeners } from '@/lib/pushNotifications';
 import { BottomNavigation } from '@/components/BottomNavigation';
@@ -14,7 +14,9 @@ export default function ClientLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { setUser } = useStore();
+  const { user, setUser } = useStore();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   useEffect(() => {
     initPushNotifications();
@@ -23,62 +25,96 @@ export default function ClientLayout({
     };
   }, []);
 
+  // 인증 상태 변경 감지
   useEffect(() => {
     let isMounted = true;
 
     const unsubscribe = Firebase.initializeAuth(async (firebaseUser) => {
-      if (!isMounted) return;
+      console.log('Auth State Changed:', {
+        firebaseUser: firebaseUser?.email,
+        pathname,
+        isInitialized,
+        isAuthChecked
+      });
 
-      console.log('Auth State Changed:', { firebaseUser: firebaseUser?.email, pathname });
+      if (!isMounted) return;
 
       if (firebaseUser) {
         try {
           const userData = await Firebase.fetchUserData(firebaseUser.uid);
-          console.log('User Data Fetched:', { userData: userData?.email, pathname });
+          console.log('User Data Fetched:', {
+            userData: userData?.email,
+            pathname,
+            isInitialized
+          });
 
           if (!isMounted) return;
 
           if (userData) {
             setUser(userData);
-            if (pathname === '/login') {
-              console.log('Redirecting to dashboard...');
-              try {
-                await router.push('/dashboard');
-                console.log('Redirect successful');
-              } catch (error) {
-                console.error('Redirect failed:', error);
-              }
-            }
           } else {
-            console.log('No user data found, redirecting to login');
             setUser(null);
-            if (pathname !== '/login') {
-              router.push('/login');
-            }
           }
         } catch (error) {
           console.error('사용자 데이터 로딩 오류:', error);
-          if (!isMounted) return;
           setUser(null);
-          if (pathname !== '/login') {
-            router.push('/login');
-          }
         }
       } else {
-        console.log('No firebase user, redirecting to login');
         setUser(null);
-        if (pathname !== '/login') {
-          router.push('/login');
-        }
+      }
+
+      if (!isAuthChecked) {
+        setIsAuthChecked(true);
       }
     });
 
     return () => {
-      console.log('Cleanup: Unsubscribing from auth state');
       isMounted = false;
       unsubscribe();
     };
-  }, [setUser, router, pathname]);
+  }, [setUser, pathname, isInitialized, isAuthChecked]);
+
+  // 라우팅 처리
+  useEffect(() => {
+    if (!isAuthChecked) return;
+
+    console.log('Routing Check:', {
+      user: user?.email,
+      pathname,
+      isAuthChecked,
+      isInitialized
+    });
+
+    const handleRouting = async () => {
+      if (!isInitialized) {
+        setIsInitialized(true);
+        return;
+      }
+
+      if (user) {
+        if (pathname === '/login') {
+          console.log('Authenticated user on login page, redirecting to dashboard');
+          await router.replace('/dashboard');
+        }
+      } else {
+        if (pathname !== '/login') {
+          console.log('Unauthenticated user, redirecting to login');
+          await router.replace('/login');
+        }
+      }
+    };
+
+    handleRouting();
+  }, [user, pathname, isAuthChecked, isInitialized, router]);
+
+  // 초기 로딩 상태
+  if (!isAuthChecked || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">

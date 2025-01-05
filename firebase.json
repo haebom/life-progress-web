@@ -9,19 +9,20 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css)",
+        "destination": "/_next/static/**",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "public, max-age=31536000, immutable"
           }
         ]
+      },
+      {
+        "source": "**",
+        "function": "nextServer"
       }
-    ]
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
   }
 } 
