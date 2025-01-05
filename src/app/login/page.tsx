@@ -84,58 +84,59 @@ export default function LoginPage() {
     }
   }, [processUserData, handleLoginSuccess, navigateTo]);
 
-  // 인증 상태 변경 감지
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const checkExistingAuth = async () => {
-      try {
-        console.log('기존 인증 상태 확인');
-        const currentUser = Firebase.auth.currentUser;
-        if (currentUser && isSubscribed) {
-          await handleUserLogin(currentUser);
-        }
-      } catch (error) {
-        console.error('기존 인증 상태 확인 중 오류:', error);
-      }
-    };
-
-    const setupAuthListener = () => {
-      console.log('인증 상태 감지 설정');
-      return Firebase.auth.onAuthStateChanged(async (user) => {
-        console.log('인증 상태 변경:', user ? '로그인됨' : '로그아웃됨');
-        if (user && isSubscribed) {
-          await handleUserLogin(user);
-        } else {
-          localStorage.clear();
-        }
-      });
-    };
-
-    checkExistingAuth();
-    const unsubscribe = setupAuthListener();
-
-    return () => {
-      isSubscribed = false;
-      unsubscribe();
-    };
-  }, [handleUserLogin]);
-
   // Google 로그인 버튼 핸들러
   const handleGoogleLogin = async () => {
     try {
       setError(null);
       setLoading(true);
-      localStorage.clear();
+      console.log('Google 로그인 시작');
       await Firebase.signInWithGoogle();
+      
+      // 리디렉트 방식에서는 여기까지 실행됨
+      console.log('로그인 프로세스 시작됨');
     } catch (error) {
       console.error('Google 로그인 오류:', error);
       setError('로그인에 실패했습니다. 다시 시도해주세요.');
-      localStorage.clear();
-    } finally {
       setLoading(false);
     }
   };
+
+  // 리디렉트 결과 처리
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        console.log('리디렉트 결과 확인');
+        const result = await Firebase.getGoogleRedirectResult();
+        if (result?.user) {
+          console.log('리디렉트 로그인 성공');
+          await handleUserLogin(result.user);
+        }
+      } catch (error) {
+        console.error('리디렉트 처리 중 오류:', error);
+        setError('로그인 처리 중 오류가 발생했습니다.');
+        setLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, [handleUserLogin]);
+
+  // 인증 상태 감지
+  useEffect(() => {
+    console.log('인증 상태 감지 설정');
+    
+    const unsubscribe = Firebase.auth.onAuthStateChanged(async (user) => {
+      console.log('인증 상태 변경:', user ? '로그인됨' : '로그아웃됨');
+      if (user) {
+        await handleUserLogin(user);
+      } else {
+        localStorage.clear();
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [handleUserLogin]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
