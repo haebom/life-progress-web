@@ -1,8 +1,9 @@
 export interface QuestItem {
   id: string;
   title: string;
-  status: 'Not Started' | 'In Progress' | 'Done';
+  status: 'active' | 'completed' | 'failed';
   startedAt?: string;
   completedAt?: string;
   userId: string;
+  progress?: number;
 } 

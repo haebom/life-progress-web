@@ -1,136 +1,182 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { Client } from '@notionhq/client';
-import { 
-  PageObjectResponse,
-  DatabaseObjectResponse
-} from '@notionhq/client/build/src/api-endpoints';
+import { isFullPage } from '@notionhq/client';
 import type { QuestItem } from '@/types/notion';
+import type { 
+  GetPagePropertyResponse,
+  TitlePropertyItemObjectResponse,
+  RichTextPropertyItemObjectResponse
+} from '@notionhq/client/build/src/api-endpoints';
 
-// Notion 클라이언트 생성 함수
-function createNotionClient() {
-  const cookieStore = cookies();
-  const accessToken = cookieStore.get('notion_access_token')?.value;
+// 환경 변수 검증
+if (!process.env.NOTION_API_KEY) {
+  throw new Error('NOTION_API_KEY가 설정되지 않았습니다.');
+}
 
-  if (!accessToken) {
-    throw new Error('Notion 연동이 필요합니다.');
+if (!process.env.NOTION_DATABASE_ID) {
+  throw new Error('NOTION_DATABASE_ID가 설정되지 않았습니다.');
+}
+
+// Notion 클라이언트 초기화
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  notionVersion: '2022-06-28'
+});
+
+// 데이터베이스 속성 접근 함수
+async function getPropertyValue(propertyId: string, propertyType: string): Promise<string | number | null> {
+  try {
+    const property = await notion.pages.properties.retrieve({
+      page_id: propertyId,
+      property_id: propertyType
+    }) as GetPagePropertyResponse;
+
+    if ('object' in property) {
+      switch (property.type) {
+        case 'title': {
+          const titleProperty = property as TitlePropertyItemObjectResponse;
+          const titleArray = Array.isArray(titleProperty.title) ? titleProperty.title : [];
+          return titleArray[0]?.plain_text ?? null;
+        }
+        case 'select':
+          return property.select?.name ?? null;
+        case 'date':
+          return property.date?.start ?? null;
+        case 'rich_text': {
+          const textProperty = property as RichTextPropertyItemObjectResponse;
+          const textArray = Array.isArray(textProperty.rich_text) ? textProperty.rich_text : [];
+          return textArray[0]?.plain_text ?? null;
+        }
+        case 'number':
+          return property.number ?? null;
+        default:
+          return null;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error(`속성 조회 오류 (${propertyType}):`, error);
+    return null;
   }
-
-  return new Client({ auth: accessToken });
 }
 
-// 타입 가드 함수
-function isDatabaseResponse(obj: unknown): obj is DatabaseObjectResponse {
-  return Boolean(
-    obj && 
-    typeof obj === 'object' && 
-    'id' in obj &&
-    'object' in obj &&
-    (obj as { object: string }).object === 'database'
-  );
-}
-
-function isPageResponse(obj: unknown): obj is PageObjectResponse {
-  return Boolean(
-    obj && 
-    typeof obj === 'object' && 
-    'properties' in obj
-  );
+// Notion 상태값을 앱 상태값으로 매핑하는 함수
+function mapNotionStatus(status: string | null): 'active' | 'completed' | 'failed' {
+  if (!status) return 'active';
+  
+  switch (status.toLowerCase()) {
+    case 'not started':
+    case 'in progress':
+      return 'active';
+    case 'done':
+    case 'completed':
+      return 'completed';
+    default:
+      return 'failed';
+  }
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const action = searchParams.get('action');
-  const userId = searchParams.get('userId');
-
-  if (!action) {
-    return NextResponse.json({ error: '액션이 지정되지 않았습니다.' }, { status: 400 });
-  }
-
   try {
-    const notion = createNotionClient();
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action');
+    const userId = searchParams.get('userId');
 
-    switch (action) {
-      case 'getQuests': {
-        if (!userId) {
-          return NextResponse.json({ error: '사용자 ID가 필요합니다.' }, { status: 400 });
-        }
+    if (!userId) {
+      return new Response(JSON.stringify({ error: '사용자 ID가 필요합니다.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-        // 데이터베이스 검색
-        const databases = await notion.search({
-          filter: { property: 'object', value: 'database' }
+    if (action === 'getQuests') {
+      const databaseId = process.env.NOTION_DATABASE_ID;
+      
+      if (!databaseId) {
+        return new Response(JSON.stringify({ error: 'Notion 데이터베이스 ID가 설정되지 않았습니다.' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
         });
-
-        const database = databases.results[0];
-        if (!database || !isDatabaseResponse(database)) {
-          return NextResponse.json(
-            { error: '사용 가능한 Notion 데이터베이스를 찾을 수 없습니다.' },
-            { status: 404 }
-          );
-        }
-
-        // 퀘스트 조회
-        const response = await notion.databases.query({
-          database_id: database.id,
-          filter: {
-            and: [
-              {
-                property: 'UserID',
-                rich_text: { equals: userId },
-              },
-            ],
-          },
-          sorts: [{ property: 'Started At', direction: 'descending' }],
-        });
-
-        const quests: QuestItem[] = response.results
-          .filter(isPageResponse)
-          .map(page => {
-            const props = page.properties;
-            const title = 'Title' in props && 
-              props.Title.type === 'title' &&
-              props.Title.title[0]?.plain_text || '';
-
-            const status = 'Status' in props && 
-              props.Status.type === 'select' && 
-              props.Status.select?.name as QuestItem['status'] || 'Not Started';
-
-            const startedAt = 'Started At' in props && 
-              props['Started At'].type === 'date' &&
-              props['Started At'].date?.start || undefined;
-
-            const completedAt = 'Completed At' in props && 
-              props['Completed At'].type === 'date' &&
-              props['Completed At'].date?.start || undefined;
-
-            const propUserId = 'UserID' in props && 
-              props.UserID.type === 'rich_text' &&
-              props.UserID.rich_text[0]?.plain_text || '';
-
-            return {
-              id: page.id,
-              title,
-              status,
-              startedAt,
-              completedAt,
-              userId: propUserId,
-            };
-          });
-
-        return NextResponse.json(quests);
       }
 
-      default:
-        return NextResponse.json(
-          { error: '지원하지 않는 액션입니다.' },
-          { status: 400 }
-        );
+      const response = await notion.databases.query({
+        database_id: databaseId,
+        filter: {
+          and: [
+            {
+              property: 'userId',
+              rich_text: {
+                equals: userId
+              }
+            },
+            {
+              property: 'status',
+              select: {
+                does_not_equal: 'archived'
+              }
+            }
+          ]
+        },
+        sorts: [
+          {
+            property: 'createdAt',
+            direction: 'descending'
+          }
+        ]
+      });
+
+      const quests = await Promise.all(
+        response.results
+          .filter(isFullPage)
+          .map(async page => {
+            try {
+              const [title, status, startedAt, completedAt, progress] = await Promise.all([
+                getPropertyValue(page.id, 'title'),
+                getPropertyValue(page.id, 'status'),
+                getPropertyValue(page.id, 'startedAt'),
+                getPropertyValue(page.id, 'completedAt'),
+                getPropertyValue(page.id, 'progress')
+              ]);
+
+              const quest: QuestItem = {
+                id: page.id,
+                title: String(title || '제목 없음'),
+                status: mapNotionStatus(status?.toString() || null),
+                startedAt: startedAt?.toString(),
+                completedAt: completedAt?.toString(),
+                userId,
+                progress: typeof progress === 'number' ? progress : 0
+              };
+
+              return quest;
+            } catch (error) {
+              console.error('퀘스트 데이터 변환 오류:', error);
+              return null;
+            }
+          })
+      );
+
+      const validQuests = quests.filter((quest): quest is QuestItem => quest !== null);
+
+      return new Response(JSON.stringify(validQuests), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
+
+    return new Response(JSON.stringify({ error: '잘못된 action입니다.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
   } catch (error) {
     console.error('Notion API 오류:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Notion API 오류가 발생했습니다.';
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 } 
