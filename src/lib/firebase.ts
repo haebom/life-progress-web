@@ -4,12 +4,12 @@ import { initializeApp, getApps } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithRedirect,
   signInWithPopup,
   getRedirectResult,
   onAuthStateChanged,
   signOut,
-  type User as FirebaseUser
+  type User as FirebaseUser,
+  type AuthError
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -120,13 +120,62 @@ const signInWithGoogle = async () => {
       return;
     }
 
-    if (isSafariBrowser()) {
-      return await signInWithPopup(auth, provider);
+    // 팝업 방식으로 통일
+    const result = await signInWithPopup(auth, provider);
+    if (result?.user) {
+      const userData = await fetchUserData(result.user.uid);
+      if (!userData) {
+        const now = Timestamp.now();
+        const newUser = {
+          uid: result.user.uid,
+          email: result.user.email || '',
+          name: result.user.displayName || '',
+          displayName: result.user.displayName || '',
+          photoURL: result.user.photoURL || '',
+          birthDate: now,
+          lifeExpectancy: 80,
+          isPublic: false,
+          pushNotifications: true,
+          gameStats: {
+            level: 1,
+            experience: 0,
+            questsCompleted: 0,
+            points: 0,
+            streak: 0,
+            lastActive: now,
+            achievements: [],
+            nextLevelExp: 100
+          },
+          blocks: {},
+          createdAt: now,
+          updatedAt: now,
+          lastLoginAt: now,
+          quests: 0,
+          level: 1,
+          points: 0,
+          streak: 0,
+          lastActive: now,
+          achievements: [],
+          settings: {
+            theme: 'light',
+            notifications: true,
+            language: 'ko'
+          }
+        };
+        await createNewUser(newUser);
+      }
     }
-
-    await signInWithRedirect(auth, provider);
+    return result;
   } catch (error) {
     console.error('Google 로그인 중 오류:', error);
+    const authError = error as AuthError;
+    if (authError.code === 'auth/popup-blocked') {
+      alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+    } else if (authError.code === 'auth/cancelled-popup-request') {
+      console.log('로그인이 취소되었습니다.');
+    } else {
+      alert('로그인 중 오류가 발생했습니다: ' + authError.message);
+    }
     throw error;
   }
 };
