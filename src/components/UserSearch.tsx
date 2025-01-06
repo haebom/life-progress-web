@@ -1,108 +1,99 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore/lite';
 import { db } from '@/lib/firebase';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import Image from 'next/image';
-import Link from 'next/link';
-import type { User } from '@/types';
+import type { UserProfile } from '@/types';
 
 interface UserSearchProps {
   currentUserId: string;
-  onFollowUser: (userId: string) => Promise<void>;
+  onSelect: (user: UserProfile) => void;
 }
 
-export const UserSearch = ({ currentUserId, onFollowUser }: UserSearchProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+export function UserSearch({ currentUserId, onSelect }: UserSearchProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
-    setIsSearching(true);
+    setIsLoading(true);
+    setError(null);
+
     try {
+      const usersRef = collection(db, 'users');
       const q = query(
-        collection(db, 'users'),
-        where('email', '>=', searchQuery.toLowerCase()),
-        where('email', '<=', searchQuery.toLowerCase() + '\uf8ff'),
-        limit(10)
+        usersRef,
+        where('name', '>=', searchTerm),
+        where('name', '<=', searchTerm + '\uf8ff')
       );
 
       const snapshot = await getDocs(q);
       const results = snapshot.docs
-        .map(doc => ({ ...doc.data(), id: doc.id }) as User)
-        .filter(user => user.id !== currentUserId);
+        .map(doc => ({ ...doc.data(), uid: doc.id }) as UserProfile)
+        .filter(user => user.uid !== currentUserId);
 
       setSearchResults(results);
-    } catch (error) {
-      console.error('사용자 검색 중 오류 발생:', error);
+    } catch (err) {
+      console.error('사용자 검색 중 오류 발생:', err);
+      setError('사용자 검색에 실패했습니다.');
     } finally {
-      setIsSearching(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <Input
+        <input
           type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           placeholder="사용자 이름으로 검색..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <Button onClick={handleSearch} disabled={isSearching}>
-          {isSearching ? '검색 중...' : '검색'}
-        </Button>
+        <button
+          onClick={handleSearch}
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+        >
+          검색
+        </button>
       </div>
 
-      <div className="space-y-4">
-        {searchResults.map((user) => (
-          <div
-            key={user.id}
-            className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm"
-          >
-            <div className="flex items-center gap-4">
-              {user.photoURL ? (
-                <div className="relative w-12 h-12">
-                  <Image
-                    src={user.photoURL}
-                    alt={user.name || ''}
-                    fill
-                    className="rounded-full object-cover"
-                    sizes="48px"
-                  />
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl">
-                  {user.name?.[0]}
-                </div>
-              )}
-              <div>
-                <Link
-                  href={`/profile/${user.id}`}
-                  className="font-medium hover:underline"
-                >
-                  {user.name}
-                </Link>
-                {user.bio && (
-                  <p className="text-sm text-gray-600">{user.bio}</p>
-                )}
-              </div>
-            </div>
-            <Button
-              onClick={() => user.id && onFollowUser(user.id)}
-              variant="outline"
-              size="sm"
+      {error && (
+        <div className="text-red-500 text-sm">
+          {error}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="text-center py-4">검색 중...</div>
+      ) : (
+        <div className="space-y-2">
+          {searchResults.map((user) => (
+            <div
+              key={user.uid}
+              onClick={() => onSelect(user)}
+              className="p-4 bg-white rounded-lg shadow cursor-pointer hover:bg-gray-50"
             >
-              팔로우
-            </Button>
-          </div>
-        ))}
-      </div>
+              <div className="font-medium">{user.name}</div>
+              <div className="text-sm text-gray-500">{user.email}</div>
+            </div>
+          ))}
+          {searchResults.length === 0 && searchTerm && (
+            <div className="text-center py-4 text-gray-500">
+              검색 결과가 없습니다.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
-}; 
+} 

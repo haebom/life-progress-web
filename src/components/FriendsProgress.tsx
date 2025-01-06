@@ -26,7 +26,7 @@ export function FriendsProgress({ user, friends }: FriendsProgressProps) {
   useEffect(() => {
     const progress: Record<string, number> = {};
     friends.forEach((friend) => {
-      progress[friend.id] = calculateProgress(friend.blocks);
+      progress[friend.uid] = calculateProgress(friend.blocks);
     });
     setFriendsProgress(progress);
   }, [friends]);
@@ -47,7 +47,7 @@ export function FriendsProgress({ user, friends }: FriendsProgressProps) {
       </div>
 
       {friends.map((friend) => (
-        <div key={friend.id} className="p-4 bg-white rounded-lg shadow">
+        <div key={friend.uid} className="p-4 bg-white rounded-lg shadow">
           <div className="flex items-center gap-3 mb-2">
             {friend.photoURL && (
               <div className="relative w-8 h-8">
@@ -66,11 +66,11 @@ export function FriendsProgress({ user, friends }: FriendsProgressProps) {
           <div className="relative h-2 bg-gray-200 rounded-full">
             <div
               className="absolute h-full bg-green-500 rounded-full transition-all duration-500"
-              style={{ width: `${friendsProgress[friend.id] || 0}%` }}
+              style={{ width: `${friendsProgress[friend.uid] || 0}%` }}
             />
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            {friendsProgress[friend.id] || 0}%
+            {friendsProgress[friend.uid] || 0}%
           </p>
         </div>
       ))}

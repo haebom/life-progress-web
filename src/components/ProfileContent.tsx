@@ -1,42 +1,42 @@
 'use client';
 
 import Image from 'next/image';
-import useStore from '@/store/useStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchUserData } from '@/lib/firebase';
+import type { UserProfile } from '@/types';
 
 interface ProfileContentProps {
   userId: string;
 }
 
 const ProfileContent = ({ userId }: ProfileContentProps) => {
-  const { user, setUser } = useStore();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const loadUserData = async () => {
       const data = await fetchUserData(userId);
       if (data) {
-        setUser(data);
+        setProfile(data);
       }
     };
     loadUserData();
-  }, [userId, setUser]);
+  }, [userId]);
 
-  if (!user || !user.gameStats) {
+  if (!profile || !profile.gameStats) {
     return <div>로딩 중...</div>;
   }
 
-  const { gameStats } = user;
+  const { gameStats } = profile;
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 프로필 정보 */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-center space-x-4">
-          {user.photoURL ? (
+          {profile.photoURL ? (
             <Image
-              src={user.photoURL}
-              alt={user.name || '사용자 프로필'}
+              src={profile.photoURL}
+              alt={profile.name || '사용자 프로필'}
               width={100}
               height={100}
               className="rounded-full"
@@ -47,10 +47,10 @@ const ProfileContent = ({ userId }: ProfileContentProps) => {
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-bold">{user.name || '이름 없음'}</h1>
-            <p className="text-gray-600">{user.bio || '소개가 없습니다.'}</p>
+            <h1 className="text-2xl font-bold">{profile.name || '이름 없음'}</h1>
+            <p className="text-gray-600">{profile.bio || '소개가 없습니다.'}</p>
             <div className="mt-2 text-sm text-gray-500">
-              가입일: {user.createdAt.toDate().toLocaleDateString()}
+              가입일: {profile.createdAt.toDate().toLocaleDateString()}
             </div>
           </div>
         </div>
@@ -89,19 +89,13 @@ const ProfileContent = ({ userId }: ProfileContentProps) => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {gameStats.achievements.map((achievement) => (
             <div
-              key={achievement.id}
+              key={achievement}
               className="p-4 rounded-lg bg-green-50 border border-green-200"
             >
               <div className="flex items-center gap-3">
-                <div className="text-2xl">{achievement.icon}</div>
+                <div className="text-2xl">🏆</div>
                 <div>
-                  <h3 className="font-semibold">{achievement.title}</h3>
-                  <p className="text-sm text-gray-600">{achievement.description}</p>
-                  {achievement.unlockedAt && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      달성일: {achievement.unlockedAt.toDate().toLocaleDateString()}
-                    </p>
-                  )}
+                  <h3 className="font-semibold">{achievement}</h3>
                 </div>
               </div>
             </div>

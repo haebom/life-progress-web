@@ -284,6 +284,7 @@ class FirebaseService {
       },
       followers: [],
       following: [],
+      friends: [],
     };
   }
 

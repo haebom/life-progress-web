@@ -48,9 +48,16 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'quest_update' | 'achievement' | 'follow' | 'like' | 'system';
+  type: 'quest_update' | 'achievement' | 'follow' | 'like' | 'system' | 'friend_request' | 'goal_achievement' | 'cheer';
   read: boolean;
   createdAt: Timestamp;
+  senderPhotoURL?: string;
+  senderName?: string;
+  senderId?: string;
+  action?: {
+    type: string;
+    payload: Record<string, any>;
+  };
   data?: {
     questId?: string;
     questTitle?: string;
@@ -79,6 +86,7 @@ export interface UserProfile {
   name: string;
   displayName: string;
   photoURL: string;
+  bio?: string;
   birthDate: Timestamp;
   lifeExpectancy: number;
   isPublic: boolean;
@@ -96,6 +104,7 @@ export interface UserProfile {
   };
   followers: string[];
   following: string[];
+  friends: string[];
   isFollowing?: boolean;
   fcmToken?: string;
 }
@@ -151,7 +160,7 @@ export interface LoginError extends Error {
 export interface Activity {
   id: string;
   userId: string;
-  type: 'quest_created' | 'quest_completed' | 'quest_failed' | 'level_up' | 'achievement_unlocked';
+  type: 'quest_created' | 'quest_completed' | 'quest_failed' | 'level_up' | 'achievement_unlocked' | 'goal_created' | 'goal_progress' | 'goal_completed' | 'friend_joined';
   title: string;
   description: string;
   content: string;

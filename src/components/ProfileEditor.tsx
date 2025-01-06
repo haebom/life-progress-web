@@ -16,14 +16,13 @@ export function ProfileEditor({ user, onCancel, onUpdate, isLoading }: ProfileEd
   const [formData, setFormData] = useState({
     name: user.name || '',
     displayName: user.displayName || '',
-    birthDate: user.birthDate instanceof Timestamp
+    birthDate: user.birthDate
       ? user.birthDate.toDate().toISOString().split('T')[0]
-      : user.birthDate
-      ? new Date(user.birthDate).toISOString().split('T')[0]
       : '',
     lifeExpectancy: user.lifeExpectancy || 80,
     bio: user.bio || '',
-    isPublic: user.isPublic || false,
+    isPublic: user.isPublic,
+    pushNotifications: user.pushNotifications,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

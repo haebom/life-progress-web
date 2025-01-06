@@ -22,6 +22,9 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  compiler: {
+    styledComponents: true,
+  },
   async redirects() {
     return [
       {
