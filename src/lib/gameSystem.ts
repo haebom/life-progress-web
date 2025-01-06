@@ -2,7 +2,7 @@
 
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User, Achievement, GameStats, Quest } from '@/types';
+import type { User, Achievement, UserStats, Quest } from '@/types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 // 각 레벨에 필요한 경험치
@@ -22,7 +22,7 @@ export const LEVEL_THRESHOLDS = [
 export async function updateGameStats(
   userId: string,
   userData: User,
-  updates: Partial<GameStats>
+  updates: Partial<UserStats>
 ): Promise<void> {
   try {
     const currentStats = userData.gameStats || {
@@ -94,7 +94,7 @@ export async function calculateProgress(
 
     await updateGameStats(userId, userData, {
       ...gameStats,
-      achievements: [...gameStats.achievements, achievement],
+      achievements: [...gameStats.achievements, achievement.id],
       points: gameStats.points + achievement.reward.points,
       experience: gameStats.experience + achievement.reward.experience,
     });
@@ -150,7 +150,7 @@ export async function updateStreak(userId: string, userData: User): Promise<void
       await updateGameStats(userId, userData, {
         ...gameStats,
         streak: newStreak,
-        achievements: [...gameStats.achievements, achievement],
+        achievements: [...gameStats.achievements, achievement.id],
         points: gameStats.points + achievement.reward.points,
         experience: gameStats.experience + achievement.reward.experience,
       });
