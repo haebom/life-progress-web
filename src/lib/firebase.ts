@@ -54,6 +54,7 @@ class FirebaseService {
   private storage;
   private analytics;
   private provider;
+  private authInitialized = false;
 
   private constructor() {
     this.app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -72,25 +73,37 @@ class FirebaseService {
       prompt: 'select_account'
     });
 
-    // 인증 상태 변경 감지
-    this.initializeAuthStateListener();
+    // Initialize auth state listener only once
+    if (!this.authInitialized) {
+      this.initializeAuthStateListener();
+      this.authInitialized = true;
+    }
   }
 
   private initializeAuthStateListener() {
     const { setUser, initialize } = useAuthStore.getState();
     
     onAuthStateChanged(this.auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userData = await this.fetchUserData(firebaseUser.uid);
-        if (userData) {
-          setUser({ ...firebaseUser, ...userData } as User);
+      try {
+        if (firebaseUser) {
+          const userData = await this.fetchUserData(firebaseUser.uid);
+          if (userData) {
+            setUser({ ...firebaseUser, ...userData } as User);
+          } else {
+            // If user data doesn't exist, create it
+            const userProfile = this.createInitialUserData(firebaseUser);
+            await this.createNewUser(userProfile);
+            setUser({ ...firebaseUser, ...userProfile } as User);
+          }
         } else {
           setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Auth state change error:', error);
         setUser(null);
+      } finally {
+        initialize();
       }
-      initialize();
     });
   }
 
@@ -148,10 +161,11 @@ class FirebaseService {
   }
 
   public async signInWithGoogle(): Promise<AuthResult> {
-    const { setLoading } = useAuthStore.getState();
+    const { setLoading, setError } = useAuthStore.getState();
     
     try {
       setLoading(true);
+      setError('');
       
       if (!validateDomain(AUTHORIZED_DOMAINS)) {
         throw new Error('승인되지 않은 도메인입니다.');
@@ -161,14 +175,25 @@ class FirebaseService {
         return { type: 'in_app_browser' };
       }
 
+      // Always use redirect for Safari, popup for others
       if (isSafariBrowser()) {
         await this.auth.setPersistence(browserLocalPersistence);
         await signInWithRedirect(this.auth, this.provider);
         return { type: 'redirect' };
       }
 
-      const result = await signInWithPopup(this.auth, this.provider);
-      return await this.handleAuthResult(result);
+      try {
+        const result = await signInWithPopup(this.auth, this.provider);
+        return await this.handleAuthResult(result);
+      } catch (popupError: any) {
+        // If popup fails, fall back to redirect
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/popup-closed-by-user') {
+          await signInWithRedirect(this.auth, this.provider);
+          return { type: 'redirect' };
+        }
+        throw popupError;
+      }
       
     } catch (error) {
       return this.handleAuthError(error);
@@ -178,10 +203,12 @@ class FirebaseService {
   }
 
   public async getGoogleRedirectResult(): Promise<AuthResult> {
-    const { setLoading } = useAuthStore.getState();
+    const { setLoading, setError } = useAuthStore.getState();
     
     try {
       setLoading(true);
+      setError('');
+      
       const result = await getRedirectResult(this.auth);
       
       if (result) {
