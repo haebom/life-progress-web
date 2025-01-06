@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useStore from '@/store/useStore';
 import { ProfileEditor } from '@/components/ProfileEditor';
-import { updateUserSettings } from '@/lib/auth';
-import type { User } from '@/types';
+import { updateUserProfile } from '@/lib/firebase';
+import type { UserProfile } from '@/types';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -21,13 +21,13 @@ export default function SettingsPage() {
     );
   }
 
-  const handleUpdate = async (updatedData: User) => {
+  const handleUpdate = async (updatedData: Partial<UserProfile>) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      await updateUserSettings(user.uid, updatedData);
-      setUser(updatedData);
+      await updateUserProfile(user.uid, updatedData);
+      setUser({ ...user, ...updatedData });
       router.push('/dashboard');
     } catch (error) {
       console.error('설정 업데이트 오류:', error);

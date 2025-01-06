@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore/lite';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 export type QuestStatus = 'active' | 'completed' | 'failed' | 'deleted';
@@ -121,11 +121,12 @@ export type User = BaseUser & UserProfile;
 
 export type AuthResultType = 'success' | 'error' | 'redirect' | 'in_app_browser' | 'no_result';
 
-export interface AuthResult {
-  type: AuthResultType;
-  user?: User;
-  message?: string;
-}
+export type AuthResult = 
+  | { type: 'success'; user: User; message?: string }
+  | { type: 'error'; message: string; user?: User }
+  | { type: 'redirect'; message?: string; user?: User }
+  | { type: 'no_result'; message?: string; user?: User }
+  | { type: 'in_app_browser'; message?: string; user?: User };
 
 export interface UserState {
   isInitialized: boolean;
@@ -145,4 +146,17 @@ export interface AuthState extends UserState, BrowserState {}
 export interface LoginError extends Error {
   code?: string;
   message: string;
+}
+
+export interface Activity {
+  id: string;
+  userId: string;
+  type: 'quest_created' | 'quest_completed' | 'quest_failed' | 'level_up' | 'achievement_unlocked';
+  title: string;
+  description: string;
+  content: string;
+  userName: string;
+  userPhotoURL: string;
+  metadata: Record<string, any>;
+  createdAt: Timestamp;
 } 

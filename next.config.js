@@ -4,60 +4,20 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
-  buildExcludes: [/middleware-manifest\.json$/],
-  maximumFileSizeToCacheInBytes: 5000000,
 });
 
 const nextConfig = {
   images: {
-    domains: ['lh3.googleusercontent.com'],
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: require.resolve('crypto-browserify'),
-        stream: require.resolve('stream-browserify'),
-        url: require.resolve('url'),
-        zlib: require.resolve('browserify-zlib'),
-        http: require.resolve('stream-http'),
-        https: require.resolve('https-browserify'),
-        assert: require.resolve('assert'),
-        os: require.resolve('os-browserify'),
-        path: require.resolve('path-browserify'),
-        'process/browser': require.resolve('process/browser'),
-      };
-    }
-
-    config.module.rules.push({
-      test: /\.(mjs|js|jsx|ts|tsx)$/,
-      exclude: /node_modules\/(?!(@firebase|firebase|undici)\/).*/,
-      use: {
-        loader: 'babel-loader',
-        options: {
-          presets: ['next/babel'],
-          plugins: [
-            '@babel/plugin-transform-private-methods',
-            '@babel/plugin-transform-class-properties',
-            '@babel/plugin-transform-private-property-in-object'
-          ],
-        },
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
-    });
-
-    return config;
+    ],
   },
   experimental: {
-    serverComponentsExternalPackages: ['firebase', '@firebase/auth', '@firebase/firestore'],
     optimizeCss: true,
-    forceSwcTransforms: true,
   },
-  output: 'standalone',
-  trailingSlash: false,
-  transpilePackages: ['next/font/google'],
   swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',

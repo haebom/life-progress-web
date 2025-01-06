@@ -107,13 +107,17 @@ export default function LoginPage() {
       try {
         console.log('리디렉트 결과 확인');
         const result = await Firebase.getGoogleRedirectResult();
-        if (result?.user) {
+        if (result.type === 'success' && result.user) {
           console.log('리디렉트 로그인 성공');
           await handleUserLogin(result.user);
+        } else if (result.type === 'error') {
+          console.error('리디렉트 로그인 실패:', result.message);
+          setError(result.message);
         }
       } catch (error) {
         console.error('리디렉트 처리 중 오류:', error);
         setError('로그인 처리 중 오류가 발생했습니다.');
+      } finally {
         setLoading(false);
       }
     };

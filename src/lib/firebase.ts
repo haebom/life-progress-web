@@ -8,7 +8,7 @@ import {
   signInWithRedirect,
   getRedirectResult,
   onAuthStateChanged,
-  signOut,
+  signOut as firebaseSignOut,
   browserLocalPersistence,
   User as FirebaseUser,
   AuthError
@@ -225,7 +225,7 @@ class FirebaseService {
 
   public async signOut(): Promise<void> {
     const { reset } = useAuthStore.getState();
-    await signOut(this.auth);
+    await firebaseSignOut(this.auth);
     reset();
   }
 
@@ -439,4 +439,19 @@ export const Firebase = {
     type: 'system' | 'user' | 'quest',
     metadata?: Record<string, any>
   ) => firebaseService.createNotification(userId, title, message, type, metadata)
-}; 
+};
+
+// Named exports for direct imports
+export const {
+  signInWithGoogle,
+  getGoogleRedirectResult,
+  signOut,
+  fetchUserData,
+  createNewUser,
+  updateUserProfile,
+  getQuests,
+  createQuest,
+  getQuest,
+  updateQuest,
+  createNotification
+} = Firebase; 
