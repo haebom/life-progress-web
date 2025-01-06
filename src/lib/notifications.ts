@@ -2,24 +2,16 @@
 
 import { collection, addDoc, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Quest, User } from '@/types';
+import type { Quest, User, Notification } from '@/types';
 
-interface NotificationData {
-  questId?: string;
-  goalId?: string;
-  friendId?: string;
-  senderName?: string;
-  senderPhotoURL?: string;
-  progress?: number;
-  questTitle?: string;
-  [key: string]: unknown;
-}
+type NotificationType = Notification['type'];
+type NotificationData = NonNullable<Notification['data']>;
 
 export async function createNotification(
   userId: string,
   title: string,
   message: string,
-  type: string,
+  type: NotificationType,
   data?: NotificationData
 ) {
   try {
@@ -39,7 +31,7 @@ export async function createNotification(
   }
 }
 
-export async function getNotifications(userId: string) {
+export async function getNotifications(userId: string): Promise<Notification[]> {
   try {
     const q = query(
       collection(db, 'notifications'),
@@ -51,7 +43,7 @@ export async function getNotifications(userId: string) {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-    }));
+    })) as Notification[];
   } catch (error) {
     console.error('알림 목록을 가져오는 중 오류 발생:', error);
     throw error;
@@ -78,7 +70,7 @@ export async function sendQuestProgressNotification(
 
     if (message) {
       await createNotification(
-        user.id,
+        user.uid,
         '퀘스트 진행 상황',
         message,
         'quest_progress',
@@ -107,7 +99,7 @@ export async function sendQuestDeadlineNotification(
 
     if (diffDays <= 7 && diffDays > 0) {
       await createNotification(
-        user.id,
+        user.uid,
         '퀘스트 마감일 임박',
         `퀘스트 "${quest.title}"의 마감일이 ${diffDays}일 남았습니다.`,
         'quest_deadline',
@@ -134,7 +126,7 @@ export async function sendFriendRequestNotification(
       `${fromUser.displayName || '알 수 없는 사용자'}님이 친구 요청을 보냈습니다.`,
       'friend_request',
       {
-        friendId: fromUser.id,
+        friendId: fromUser.uid,
         senderName: fromUser.displayName || undefined,
         senderPhotoURL: fromUser.photoURL || undefined,
       }
@@ -156,7 +148,7 @@ export async function sendFriendAcceptNotification(
       `${fromUser.displayName || '알 수 없는 사용자'}님이 친구 요청을 수락했습니다.`,
       'friend_accept',
       {
-        friendId: fromUser.id,
+        friendId: fromUser.uid,
         senderName: fromUser.displayName || undefined,
         senderPhotoURL: fromUser.photoURL || undefined,
       }

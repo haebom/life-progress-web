@@ -48,7 +48,9 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'quest_update' | 'achievement' | 'follow' | 'like' | 'system' | 'friend_request' | 'goal_achievement' | 'cheer';
+  type: 'quest_update' | 'achievement' | 'follow' | 'like' | 'system' | 
+        'friend_request' | 'goal_achievement' | 'cheer' | 'quest_progress' | 
+        'quest_deadline' | 'friend_accept' | 'quest_like' | 'quest_comment';
   read: boolean;
   createdAt: Timestamp;
   senderPhotoURL?: string;
@@ -56,7 +58,7 @@ export interface Notification {
   senderId?: string;
   action?: {
     type: string;
-    payload: Record<string, any>;
+    payload: Record<string, unknown>;
   };
   data?: {
     questId?: string;
@@ -65,7 +67,12 @@ export interface Notification {
     achievementTitle?: string;
     userId?: string;
     userName?: string;
-    [key: string]: any;
+    progress?: number;
+    dueDate?: string;
+    friendId?: string;
+    senderName?: string;
+    senderPhotoURL?: string;
+    [key: string]: unknown | undefined;
   };
 }
 
