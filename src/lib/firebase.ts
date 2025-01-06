@@ -185,10 +185,12 @@ class FirebaseService {
       try {
         const result = await signInWithPopup(this.auth, this.provider);
         return await this.handleAuthResult(result);
-      } catch (popupError: any) {
+      } catch (popupError: unknown) {
         // If popup fails, fall back to redirect
-        if (popupError.code === 'auth/popup-blocked' || 
-            popupError.code === 'auth/popup-closed-by-user') {
+        if (popupError instanceof Error && 
+            ('code' in popupError) && 
+            (popupError.code === 'auth/popup-blocked' || 
+             popupError.code === 'auth/popup-closed-by-user')) {
           await signInWithRedirect(this.auth, this.provider);
           return { type: 'redirect' };
         }

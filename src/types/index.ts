@@ -168,4 +168,19 @@ export interface Activity {
   userPhotoURL: string;
   metadata: Record<string, any>;
   createdAt: Timestamp;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  requirement: {
+    type: string;
+    value: number;
+  };
+  reward: {
+    points: number;
+    experience: number;
+  };
 } 
