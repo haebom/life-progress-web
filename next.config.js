@@ -4,6 +4,8 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  buildExcludes: [/middleware-manifest\.json$/],
+  maximumFileSizeToCacheInBytes: 5000000,
 });
 
 const nextConfig = {
