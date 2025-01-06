@@ -1,25 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getQuestsFromNotion } from '@/lib/notion-server';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+export async function GET() {
+  return NextResponse.json({ message: 'Coming Soon' }, { status: 503 });
+}
 
-  if (!userId) {
-    return NextResponse.json(
-      { error: '사용자 ID가 필요합니다.' },
-      { status: 400 }
-    );
-  }
+export async function POST() {
+  return NextResponse.json({ message: 'Coming Soon' }, { status: 503 });
+}
 
-  try {
-    const quests = await getQuestsFromNotion(userId);
-    return NextResponse.json(quests);
-  } catch (error) {
-    console.error('퀘스트 조회 중 오류:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '퀘스트 조회 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
-  }
+export async function PUT() {
+  return NextResponse.json({ message: 'Coming Soon' }, { status: 503 });
+}
+
+export async function DELETE() {
+  return NextResponse.json({ message: 'Coming Soon' }, { status: 503 });
 } 
