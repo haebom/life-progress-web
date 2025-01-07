@@ -38,18 +38,20 @@ export async function getQuestsFromNotion(userId: string): Promise<Quest[]> {
         and: [
           {
             property: 'UserID',
-            rich_text: {
-              equals: userId,
-            },
+            rich_text: { equals: userId }
           },
-        ],
+          {
+            property: 'Status',
+            select: { equals: 'Active' }
+          }
+        ]
       },
       sorts: [
         {
           property: 'Created At',
-          direction: 'descending',
-        },
-      ],
+          direction: 'descending'
+        }
+      ]
     });
 
     return response.results

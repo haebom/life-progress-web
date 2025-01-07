@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Firebase } from '../firebase';
 import { useAuthStore } from '@/store/auth';
-import type { User } from '@/types';
-import type { Auth, GoogleAuthProvider as GoogleAuthProviderType } from 'firebase/auth';
+import type { User, UserProfile } from '@/types';
+import type { Auth, GoogleAuthProvider as GoogleAuthProviderType, UserCredential } from 'firebase/auth';
 
 // Firebase Auth 모의 객체
 vi.mock('firebase/auth', () => {
@@ -86,11 +86,15 @@ describe('Firebase Service', () => {
         uid: 'test-uid',
         email: 'test@example.com',
         displayName: 'Test User',
-      };
+      } as unknown as User;
 
       vi.mocked(isInAppBrowser).mockReturnValue(false);
       vi.mocked(isSafariBrowser).mockReturnValue(false);
-      vi.mocked(signInWithPopup).mockResolvedValue({ user: mockUser } as any);
+      vi.mocked(signInWithPopup).mockResolvedValue({
+        user: mockUser,
+        providerId: 'google.com',
+        operationType: 'signIn'
+      } as unknown as UserCredential);
 
       const result = await Firebase.signInWithGoogle();
       expect(result.type).toBe('success');
@@ -120,9 +124,13 @@ describe('Firebase Service', () => {
         uid: 'test-uid',
         email: 'test@example.com',
         displayName: 'Test User',
-      };
+      } as unknown as User;
 
-      vi.mocked(getRedirectResult).mockResolvedValue({ user: mockUser } as any);
+      vi.mocked(getRedirectResult).mockResolvedValue({
+        user: mockUser,
+        providerId: 'google.com',
+        operationType: 'signIn'
+      } as unknown as UserCredential);
 
       const result = await Firebase.getGoogleRedirectResult();
       expect(result.type).toBe('success');

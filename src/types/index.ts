@@ -173,7 +173,17 @@ export interface Activity {
   content: string;
   userName: string;
   userPhotoURL: string;
-  metadata: Record<string, any>;
+  metadata: {
+    questId?: string;
+    questTitle?: string;
+    achievementId?: string;
+    achievementTitle?: string;
+    progress?: number;
+    level?: number;
+    experience?: number;
+    points?: number;
+    [key: string]: unknown | undefined;
+  };
   createdAt: Timestamp;
 }
 
